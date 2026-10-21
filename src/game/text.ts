@@ -1,0 +1,18 @@
+export const text = {
+  title: 'spil',
+  subtitle: 'Et spil til 3. klasse',
+  loading: 'Indlæser …',
+  loadingHint: 'Gør klar til at spille',
+  start: 'Start',
+  menu: 'Menu',
+  playAgain: 'Spil igen',
+  soundOn: 'Lyd til',
+  soundOff: 'Lyd fra',
+  help: 'Flyt figuren med fingeren eller piletasterne',
+  score: (stars: number, goal: number) => `Stjerner: ${stars} / ${goal}`,
+  best: (best: number) => `Bedste: ${best}`,
+  winTitle: 'Flot!',
+  winBody: (goal: number) => `Du fandt alle ${goal} stjerner!`,
+  winBest: (best: number) => `Din bedste runde: ${best} stjerner`,
+  newRecord: 'Ny rekord!',
+} as const;
