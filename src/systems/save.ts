@@ -1,3 +1,4 @@
+import { getItem } from '@/game/catalog/items';
 import {
   clampNeed,
   isPetId,
@@ -8,6 +9,7 @@ import {
   type PlacedFurniture,
   type SaveData,
 } from '@/game/types';
+import { normalizeLook } from '@/systems/appearance';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -79,7 +81,7 @@ function parseLook(value: unknown): CharacterLook | null {
     return null;
   }
 
-  return { skin, hair, hairColor, eyes, mouth, outfit, outfitColor, accessory };
+  return normalizeLook({ skin, hair, hairColor, eyes, mouth, outfit, outfitColor, accessory });
 }
 
 function parseNeeds(value: unknown): Needs {
@@ -101,13 +103,16 @@ function parsePet(value: unknown): PetState | null {
     return null;
   }
 
+  const accessoryId = readText(value.accessory);
+  const accessory = accessoryId ? getItem(accessoryId) : undefined;
+
   return {
     id: value.id,
     name,
     needs: parseNeeds(value.needs),
     bond: readCount(value.bond, 0),
     hatchedAt: readCount(value.hatchedAt, 0),
-    accessory: value.accessory === null ? null : readText(value.accessory),
+    accessory: accessory?.category === 'accessory' ? accessoryId : null,
   };
 }
 
@@ -118,6 +123,9 @@ function parseInventory(value: unknown): Record<string, number> {
 
   const inventory: Record<string, number> = {};
   for (const [itemId, count] of Object.entries(value)) {
+    if (!getItem(itemId)) {
+      continue;
+    }
     if (count === 0) {
       continue;
     }
@@ -141,7 +149,7 @@ function parseFurniture(value: unknown): PlacedFurniture[] {
     }
     const uid = readText(entry.uid);
     const itemId = readText(entry.itemId);
-    if (!uid || !itemId || !isRoomId(entry.room)) {
+    if (!uid || !itemId || !isRoomId(entry.room) || !getItem(itemId)?.placeable) {
       continue;
     }
     if (typeof entry.x !== 'number' || typeof entry.y !== 'number') {

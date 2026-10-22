@@ -244,6 +244,7 @@ export const text = {
       treat: 'Jeg er mæt og glad!',
     },
     heartGain: (count: number) => `+${count}`,
+    treatTaste: (name: string) => `Nam! ${name}`,
   },
   careNoTreat: 'Køb godbidder i butikken',
   tutorial: {

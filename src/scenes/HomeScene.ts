@@ -366,7 +366,7 @@ export class HomeScene extends Phaser.Scene {
     }
     if (consumedTreat) {
       const treat = getItem(consumedTreat);
-      this.showPetMessage(`Nam! ${treat?.label ?? ''}`.trim());
+      this.showPetMessage(text.care.treatTaste(treat?.label ?? ''));
     }
 
     if (result.gained <= 0) {

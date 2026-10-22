@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { PetDefinition } from '@/game/catalog/pets';
+import { isReducedMotion } from '@/systems/motion';
 import { COLORS } from '@/ui/theme';
 
 const EGG_WIDTH = 150;
@@ -41,6 +42,9 @@ export class EggView extends Phaser.GameObjects.Container {
   }
 
   wobble(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.scene.tweens.add({
       targets: this,
       angle: { from: -7, to: 7 },

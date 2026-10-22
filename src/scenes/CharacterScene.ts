@@ -56,6 +56,7 @@ export class CharacterScene extends Phaser.Scene {
     drawBackdrop(this);
     this.look = normalizeLook(save.playerLook ?? undefined);
     this.category = 'skin';
+    save.setPlayerLook(this.look);
 
     this.createPreview();
     this.createTitle();
@@ -387,7 +388,7 @@ export class CharacterScene extends Phaser.Scene {
       const circle = this.add
         .circle(x, 608, 25, color.color)
         .setStrokeStyle(selected ? 6 : 3, selected ? COLORS.ink : COLORS.panel, 1)
-        .setInteractive();
+        .setInteractive(new Phaser.Geom.Circle(0, 0, 32), Phaser.Geom.Circle.Contains);
 
       circle.on('pointerdown', () => {
         onSelect(color);
@@ -399,12 +400,14 @@ export class CharacterScene extends Phaser.Scene {
 
   private updateLook(patch: Partial<CharacterLook>): void {
     this.look = { ...this.look, ...patch };
+    save.setPlayerLook(this.look);
     this.preview.setLook(this.look);
     this.renderOptions();
   }
 
   private randomize(): void {
     this.look = randomizeLook();
+    save.setPlayerLook(this.look);
     this.preview.setLook(this.look);
     this.renderOptions();
   }

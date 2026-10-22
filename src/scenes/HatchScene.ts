@@ -192,7 +192,9 @@ export class HatchScene extends Phaser.Scene {
     this.taps += 1;
     audio.play('hatch');
     this.egg?.wobble();
-    this.cameras.main.shake(70, 0.0025);
+    if (!isReducedMotion()) {
+      this.cameras.main.shake(70, 0.0025);
+    }
     this.drawCracks();
     this.progressText.setText(text.hatch.progress(this.taps, EGG_TAP_COUNT));
 

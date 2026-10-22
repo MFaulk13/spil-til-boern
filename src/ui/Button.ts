@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MIN_TOUCH_TARGET } from '@/game/constants';
 import { audio } from '@/systems/audio';
+import { isReducedMotion } from '@/systems/motion';
 import { BUTTON_SIZE, COLORS, FONT_FAMILY } from '@/ui/theme';
 
 export interface ButtonOptions {
@@ -112,6 +113,9 @@ export class Button extends Phaser.GameObjects.Container {
     }
     this.pressed = true;
     audio.unlock();
+    if (isReducedMotion()) {
+      return;
+    }
     this.scene.tweens.add({
       targets: this,
       scale: 0.95,

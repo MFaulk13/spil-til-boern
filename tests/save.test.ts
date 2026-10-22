@@ -107,6 +107,42 @@ describe('parseSave', () => {
     expect(saved.home.furniture).toEqual([]);
   });
 
+  it('filters unknown catalog ids from inventory, furniture and accessories', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 2,
+        pet: { id: 'dog', name: 'Baloo', accessory: 'dragon' },
+        inventory: { 'made-up': 2, rug: 1 },
+        home: {
+          furniture: [
+            { uid: 'a', itemId: 'made-up', room: 'living', x: 0, y: 0 },
+            { uid: 'b', itemId: 'cookie', room: 'living', x: 0, y: 0 },
+            { uid: 'c', itemId: 'rug', room: 'living', x: 0, y: 0 },
+          ],
+        },
+      }),
+    );
+
+    expect(saved.inventory).toEqual({ rug: 1 });
+    expect(saved.home.furniture.map((item) => item.itemId)).toEqual(['rug']);
+    expect(saved.pet?.accessory).toBeNull();
+  });
+
+  it('normalizes unknown appearance ids to valid defaults', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 2,
+        player: {
+          look: { ...look, skin: 'alien', outfit: 'cape', accessory: 'jetpack' },
+        },
+      }),
+    );
+
+    expect(saved.player?.look.skin).toBe('medium');
+    expect(saved.player?.look.outfit).toBe('tshirt');
+    expect(saved.player?.look.accessory).toBeNull();
+  });
+
   it('clamps pet needs to the valid range', () => {
     const saved = parseSave(
       JSON.stringify({
@@ -203,6 +239,10 @@ describe('SaveManager', () => {
 
     manager.addFurniture(item);
     expect(manager.furniture).toHaveLength(1);
+
+    expect(manager.moveFurniture('a1', 5, 6)).toBe(true);
+    expect(manager.furniture[0]).toMatchObject({ x: 5, y: 6 });
+    expect(manager.moveFurniture('missing', 1, 2)).toBe(false);
 
     expect(manager.removeFurniture('a1')).toBe(true);
     expect(manager.furniture).toHaveLength(0);

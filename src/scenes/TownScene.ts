@@ -176,7 +176,15 @@ export class TownScene extends Phaser.Scene {
       .setDepth(900)
       .setAlpha(0);
 
-    this.tweens.add({ targets: banner, alpha: 1, y: 200, duration: 180, ease: 'Quad.easeOut' });
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: banner,
+        alpha: 1,
+        y: 200,
+        duration: 180,
+        ease: 'Quad.easeOut',
+      });
+    }
 
     if (isReducedMotion()) {
       this.time.delayedCall(180, () => this.finishTravel(sceneKey));
