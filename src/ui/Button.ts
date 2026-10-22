@@ -13,6 +13,8 @@ export interface ButtonOptions {
   color?: number;
   textColor?: string;
   fontSize?: number;
+  iconKey?: string;
+  iconSize?: number;
 }
 
 export class Button extends Phaser.GameObjects.Container {
@@ -20,10 +22,11 @@ export class Button extends Phaser.GameObjects.Container {
 
   private readonly background: Phaser.GameObjects.Graphics;
   private readonly labelText: Phaser.GameObjects.Text;
-  private readonly baseColor: number;
+  private baseColor: number;
   private readonly buttonWidth: number;
   private readonly buttonHeight: number;
   private pressed = false;
+  private enabled = true;
 
   constructor(scene: Phaser.Scene, options: ButtonOptions) {
     super(scene, options.x, options.y);
@@ -46,8 +49,10 @@ export class Button extends Phaser.GameObjects.Container {
     this.background = scene.add.graphics();
     this.drawBackground(this.baseColor);
 
+    const hasIcon = options.iconKey !== undefined && scene.textures.exists(options.iconKey);
+    const labelX = hasIcon ? 18 : 0;
     this.labelText = scene.add
-      .text(0, 0, options.label, {
+      .text(labelX, 0, options.label, {
         fontFamily: FONT_FAMILY,
         fontSize: `${options.fontSize ?? 40}px`,
         color: options.textColor ?? COLORS.textDark,
@@ -55,15 +60,21 @@ export class Button extends Phaser.GameObjects.Container {
       })
       .setOrigin(0.5);
 
-    this.add([shadow, this.background, this.labelText]);
+    this.add([shadow, this.background]);
+
+    if (hasIcon && options.iconKey) {
+      const iconSize = options.iconSize ?? 40;
+      this.add(
+        scene.add
+          .image(-this.buttonWidth / 2 + iconSize / 2 + 18, 0, options.iconKey)
+          .setDisplaySize(iconSize, iconSize),
+      );
+    }
+
+    this.add(this.labelText);
     this.setSize(this.buttonWidth, this.buttonHeight);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -this.buttonWidth / 2,
-        -this.buttonHeight / 2,
-        this.buttonWidth,
-        this.buttonHeight,
-      ),
+      new Phaser.Geom.Rectangle(0, 0, this.buttonWidth, this.buttonHeight),
       Phaser.Geom.Rectangle.Contains,
     );
 
@@ -80,7 +91,25 @@ export class Button extends Phaser.GameObjects.Container {
     return this;
   }
 
+  setColor(color: number): this {
+    this.baseColor = color;
+    this.drawBackground(color);
+    return this;
+  }
+
+  setEnabled(enabled: boolean): this {
+    this.enabled = enabled;
+    this.setAlpha(enabled ? 1 : 0.5);
+    if (this.input) {
+      this.input.enabled = enabled;
+    }
+    return this;
+  }
+
   private handlePointerDown(): void {
+    if (!this.enabled) {
+      return;
+    }
     this.pressed = true;
     audio.unlock();
     this.scene.tweens.add({
@@ -104,7 +133,7 @@ export class Button extends Phaser.GameObjects.Container {
   }
 
   private handlePointerUp(): void {
-    if (!this.pressed) {
+    if (!this.enabled || !this.pressed) {
       return;
     }
     this.pressed = false;

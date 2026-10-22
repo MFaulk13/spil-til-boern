@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <g stroke="#3a2e2a" stroke-width="6" stroke-linejoin="round">
+    <path d="M62 10 C40 14 26 32 30 52 C33 68 46 80 62 82 C52 70 50 54 58 40 C64 29 66 18 62 10 Z" fill="#ffd166" />
+    <path d="M66 22 C76 20 84 24 88 32 C80 32 74 38 72 46 C68 38 66 30 66 22 Z" fill="#c9b2e8" />
+  </g>
+  <g fill="#3a2e2a" font-family="system-ui, sans-serif" font-weight="700">
+    <text x="58" y="34" font-size="20">z</text>
+    <text x="70" y="24" font-size="15">z</text>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <g stroke="#4a3a32" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M328 360 Q400 340 392 286 Q388 262 370 266 Q356 270 362 290 Q368 322 318 336 Z" fill="#d4dee8" />
+    <ellipse cx="256" cy="372" rx="82" ry="68" fill="#e2ebf3" />
+    <ellipse cx="218" cy="430" rx="30" ry="18" fill="#f4f8fb" />
+    <ellipse cx="294" cy="430" rx="30" ry="18" fill="#f4f8fb" />
+    <path d="M184 168 L170 92 L236 146 Z" fill="#e2ebf3" />
+    <path d="M328 168 L342 92 L276 146 Z" fill="#e2ebf3" />
+    <path d="M186 152 L178 114 L218 144 Z" fill="#f3a6c8" stroke-width="6" />
+    <path d="M326 152 L334 114 L294 144 Z" fill="#f3a6c8" stroke-width="6" />
+    <circle cx="256" cy="224" r="108" fill="#e2ebf3" />
+    <path d="M194 250 Q216 236 236 248" fill="none" stroke="#b7c6d4" stroke-width="8" />
+    <path d="M318 250 Q296 236 276 248" fill="none" stroke="#b7c6d4" stroke-width="8" />
+    <ellipse cx="256" cy="266" rx="11" ry="8" fill="#f3a6c8" />
+    <path d="M256 274 L256 282" fill="none" stroke="#4a3a32" stroke-width="7" />
+    <path d="M240 286 Q256 296 272 286" fill="none" stroke="#4a3a32" stroke-width="7" />
+    <ellipse cx="220" cy="210" rx="28" ry="31" fill="#ffffff" stroke-width="7" />
+    <ellipse cx="292" cy="210" rx="28" ry="31" fill="#ffffff" stroke-width="7" />
+    <ellipse cx="222" cy="214" rx="14" ry="17" fill="#4f7fa8" stroke="none" />
+    <ellipse cx="294" cy="214" rx="14" ry="17" fill="#4f7fa8" stroke="none" />
+    <circle cx="227" cy="207" r="5" fill="#ffffff" stroke="none" />
+    <circle cx="299" cy="207" r="5" fill="#ffffff" stroke="none" />
+    <g fill="none" stroke="#4a3a32" stroke-width="5" stroke-linecap="round">
+      <path d="M186 258 L140 250" />
+      <path d="M186 268 L142 274" />
+      <path d="M326 258 L372 250" />
+      <path d="M326 268 L370 274" />
+    </g>
+    <path d="M212 330 Q256 348 300 330" fill="none" stroke="#b7c6d4" stroke-width="9" />
+  </g>
+</svg>

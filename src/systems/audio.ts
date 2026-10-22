@@ -1,6 +1,22 @@
 import { save } from '@/systems/save';
 
-export type SfxName = 'click' | 'collect' | 'win';
+export type SfxName =
+  | 'click'
+  | 'collect'
+  | 'win'
+  | 'hatch'
+  | 'reveal'
+  | 'pop'
+  | 'bark'
+  | 'meow'
+  | 'neigh'
+  | 'chirp'
+  | 'splash'
+  | 'bubble'
+  | 'eat'
+  | 'play'
+  | 'love'
+  | 'sleep';
 
 interface Tone {
   frequency: number;
@@ -25,7 +41,81 @@ const SFX: Record<SfxName, Tone[]> = {
     { frequency: 783.99, delay: 0.24, duration: 0.16, type: 'triangle', gain: 0.2 },
     { frequency: 1046.5, delay: 0.36, duration: 0.32, type: 'triangle', gain: 0.22 },
   ],
+  hatch: [
+    { frequency: 440, endFrequency: 880, delay: 0, duration: 0.12, type: 'triangle', gain: 0.16 },
+    {
+      frequency: 660,
+      endFrequency: 1320,
+      delay: 0.08,
+      duration: 0.16,
+      type: 'triangle',
+      gain: 0.14,
+    },
+  ],
+  reveal: [
+    { frequency: 587.33, delay: 0, duration: 0.2, type: 'sine', gain: 0.18 },
+    { frequency: 739.99, delay: 0.1, duration: 0.22, type: 'sine', gain: 0.18 },
+    { frequency: 880, delay: 0.2, duration: 0.2, type: 'sine', gain: 0.18 },
+    { frequency: 1174.66, delay: 0.3, duration: 0.4, type: 'sine', gain: 0.16 },
+  ],
+  pop: [{ frequency: 900, endFrequency: 300, delay: 0, duration: 0.09, type: 'sine', gain: 0.18 }],
+  bark: [
+    { frequency: 240, endFrequency: 150, delay: 0, duration: 0.12, type: 'square', gain: 0.12 },
+    { frequency: 220, endFrequency: 140, delay: 0.16, duration: 0.12, type: 'square', gain: 0.1 },
+  ],
+  meow: [{ frequency: 720, endFrequency: 420, delay: 0, duration: 0.32, type: 'sine', gain: 0.16 }],
+  neigh: [
+    { frequency: 320, endFrequency: 190, delay: 0, duration: 0.3, type: 'sawtooth', gain: 0.08 },
+    {
+      frequency: 300,
+      endFrequency: 170,
+      delay: 0.12,
+      duration: 0.28,
+      type: 'sawtooth',
+      gain: 0.06,
+    },
+  ],
+  chirp: [
+    { frequency: 980, endFrequency: 1300, delay: 0, duration: 0.09, type: 'sine', gain: 0.14 },
+    { frequency: 1100, endFrequency: 1450, delay: 0.12, duration: 0.09, type: 'sine', gain: 0.12 },
+  ],
+  splash: [
+    { frequency: 420, endFrequency: 160, delay: 0, duration: 0.18, type: 'triangle', gain: 0.14 },
+  ],
+  bubble: [
+    { frequency: 300, endFrequency: 640, delay: 0, duration: 0.13, type: 'sine', gain: 0.14 },
+    { frequency: 380, endFrequency: 760, delay: 0.14, duration: 0.12, type: 'sine', gain: 0.1 },
+  ],
+  eat: [
+    { frequency: 210, endFrequency: 150, delay: 0, duration: 0.07, type: 'square', gain: 0.09 },
+    { frequency: 250, endFrequency: 170, delay: 0.11, duration: 0.07, type: 'square', gain: 0.08 },
+    { frequency: 200, endFrequency: 140, delay: 0.22, duration: 0.07, type: 'square', gain: 0.07 },
+  ],
+  play: [
+    { frequency: 523.25, delay: 0, duration: 0.09, type: 'triangle', gain: 0.16 },
+    { frequency: 659.25, delay: 0.09, duration: 0.09, type: 'triangle', gain: 0.16 },
+    { frequency: 783.99, delay: 0.18, duration: 0.14, type: 'triangle', gain: 0.16 },
+  ],
+  love: [
+    { frequency: 740, endFrequency: 980, delay: 0, duration: 0.22, type: 'sine', gain: 0.15 },
+    { frequency: 880, endFrequency: 1174, delay: 0.16, duration: 0.28, type: 'sine', gain: 0.12 },
+  ],
+  sleep: [
+    { frequency: 392, endFrequency: 261.63, delay: 0, duration: 0.5, type: 'sine', gain: 0.12 },
+    { frequency: 329.63, endFrequency: 196, delay: 0.4, duration: 0.6, type: 'sine', gain: 0.09 },
+  ],
 };
+
+const MUSIC_CHORDS: readonly (readonly number[])[] = [
+  [261.63, 329.63, 392.0],
+  [220.0, 261.63, 329.63],
+  [174.61, 220.0, 261.63],
+  [196.0, 246.94, 293.66],
+];
+
+const MUSIC_MELODY: readonly number[] = [523.25, 659.25, 783.99, 659.25, 587.33, 493.88, 523.25, 0];
+
+const BAR_SECONDS = 3.6;
 
 function getWebkitAudioContext(): typeof AudioContext | undefined {
   return (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -34,6 +124,10 @@ function getWebkitAudioContext(): typeof AudioContext | undefined {
 export class AudioManager {
   private context: AudioContext | null = null;
   private enabled: boolean;
+  private musicGain: GainNode | null = null;
+  private musicTimer: ReturnType<typeof setTimeout> | null = null;
+  private musicPlaying = false;
+  private musicStep = 0;
 
   constructor(enabled: boolean) {
     this.enabled = enabled;
@@ -47,14 +141,18 @@ export class AudioManager {
     this.enabled = enabled;
     if (enabled) {
       this.unlock();
+    } else {
+      this.stopMusic();
     }
   }
 
   unlock(): void {
     const context = this.getContext();
     if (context && context.state === 'suspended') {
-      void context.resume();
+      void context.resume().then(() => this.startMusic());
+      return;
     }
+    this.startMusic();
   }
 
   play(name: SfxName): void {
@@ -70,8 +168,106 @@ export class AudioManager {
     }
     const now = context.currentTime;
     for (const tone of SFX[name]) {
-      this.playTone(context, tone, now);
+      this.playTone(context, tone, now, context.destination);
     }
+  }
+
+  startMusic(): void {
+    if (!this.enabled || this.musicPlaying) {
+      return;
+    }
+    const context = this.getContext();
+    if (!context) {
+      return;
+    }
+    if (context.state === 'suspended') {
+      void context.resume().then(() => this.startMusic());
+      return;
+    }
+    this.musicPlaying = true;
+    this.musicStep = 0;
+    this.musicGain = context.createGain();
+    this.musicGain.gain.value = 0.7;
+    this.musicGain.connect(context.destination);
+    this.scheduleMusic();
+  }
+
+  stopMusic(): void {
+    this.musicPlaying = false;
+    if (this.musicTimer !== null) {
+      clearTimeout(this.musicTimer);
+      this.musicTimer = null;
+    }
+    const context = this.context;
+    const gain = this.musicGain;
+    if (context && gain) {
+      const now = context.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setTargetAtTime(0.0001, now, 0.06);
+      setTimeout(() => {
+        try {
+          gain.disconnect();
+        } catch {
+          // The node may already be disconnected.
+        }
+      }, 300);
+    }
+    this.musicGain = null;
+  }
+
+  private scheduleMusic(): void {
+    if (!this.musicPlaying) {
+      return;
+    }
+    const context = this.context;
+    if (!context || !this.musicGain) {
+      return;
+    }
+    if (context.state !== 'running') {
+      this.musicTimer = setTimeout(() => this.scheduleMusic(), 400);
+      return;
+    }
+
+    const start = context.currentTime + 0.08;
+    const chord = MUSIC_CHORDS[this.musicStep % MUSIC_CHORDS.length];
+    for (const frequency of chord) {
+      this.playMusicTone(context, frequency, start, BAR_SECONDS, 0.022);
+      this.playMusicTone(context, frequency * 2, start, BAR_SECONDS, 0.006);
+    }
+
+    const melody = MUSIC_MELODY[this.musicStep % MUSIC_MELODY.length];
+    if (melody > 0) {
+      this.playMusicTone(context, melody, start + 0.15, 0.9, 0.014, 'triangle');
+      this.playMusicTone(context, melody * 1.5, start + 1.85, 0.7, 0.009, 'triangle');
+    }
+
+    this.musicStep += 1;
+    this.musicTimer = setTimeout(() => this.scheduleMusic(), BAR_SECONDS * 1000 - 120);
+  }
+
+  private playMusicTone(
+    context: AudioContext,
+    frequency: number,
+    start: number,
+    duration: number,
+    gainValue: number,
+    type: OscillatorType = 'sine',
+  ): void {
+    if (!this.musicGain) {
+      return;
+    }
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(gainValue, start + 0.35);
+    gain.gain.setValueAtTime(gainValue, start + duration - 0.5);
+    gain.gain.linearRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.05);
   }
 
   private getContext(): AudioContext | null {
@@ -86,7 +282,7 @@ export class AudioManager {
     return this.context;
   }
 
-  private playTone(context: AudioContext, tone: Tone, now: number): void {
+  private playTone(context: AudioContext, tone: Tone, now: number, destination: AudioNode): void {
     const start = now + tone.delay;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -102,7 +298,7 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.0001, start + tone.duration);
 
     oscillator.connect(gain);
-    gain.connect(context.destination);
+    gain.connect(destination);
     oscillator.start(start);
     oscillator.stop(start + tone.duration + 0.02);
   }

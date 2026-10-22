@@ -1,8 +1,8 @@
 # Plan: Børnespil i browseren
 
 **Oprettet:** 21. oktober 2026
-**Status:** Fase 1 i gang
-**Arbejdstitel:** spil (midlertidigt)
+**Status:** Fase 2A f�rdig
+**Spiltitel:** Gotar
 
 ## Formål
 
@@ -66,21 +66,21 @@ spilagnostisk fundament, som mekanikkerne kan bygges oven på i fase 2.
 - [x] `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` er grønne.
 - [x] Manuel test i browser ved forskellige vinduesstørrelser.
 
-## Fase 2 – Spillet (næste session)
+## Fase 2 – Gotar (næste session)
 
-Brugeren giver detaljerne. Forventet input:
+Spillet hedder **Gotar** og handler om at passe sit kæledyr. Man laver sin figur,
+vælger et æg, udklækker sit kæledyr og passer det i hjemmet og byen. Der er
+ingen timere eller game over.
 
-- Tema og handling.
-- Mekanik: hvordan styrer man, hvad er målet, hvordan vinder/taber man.
-- Om der skal levels, tid, point eller samarbejde.
-- Ønsker til figurer, farver og lyde.
+Fase 2 er opdelt i delleverancer:
 
-Vi genbruger scenes og systemer og tilføjer:
+- **2A:** Karaktereditor, valg af æg, udklækning og et første hjem.
+- **2B:** Behov, plejehandlinger, hjerter og HUD.
+- **2C:** Indretning, butik, bykort og parktur.
+- **2D:** Alt indhold, lyd, balancering og polering.
 
-- [ ] Rigtig spilmekanik og niveauer.
-- [ ] Endelig grafik og lyd (erstat placeholders).
-- [ ] Balancering for 3. klasse (læsbar tekst, tydelige mål, korte runder).
-- [ ] Evt. lokal highscore og "spil igen"-flow.
+Den fulde plan ligger i
+[`2026-10-22-gotar-fase-2.md`](./2026-10-22-gotar-fase-2.md).
 
 ## Fase 3 – Polering
 

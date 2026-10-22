@@ -1,6 +1,7 @@
 :root {
-  color-scheme: dark;
-  font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+  font-family:
+    'Nunito', 'Segoe UI Rounded', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
@@ -12,7 +13,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #0b1424;
+  background: #fff6e5;
   overscroll-behavior: none;
 }
 
@@ -37,5 +38,5 @@ body {
   display: block;
   touch-action: none;
   outline: none;
-  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+  box-shadow: 0 24px 80px rgb(88 62 40 / 25%);
 }

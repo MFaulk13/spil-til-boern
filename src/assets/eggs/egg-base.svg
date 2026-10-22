@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="256" height="320">
+  <path
+    d="M128 14 C62 14 24 100 24 180 C24 258 68 306 128 306 C188 306 232 258 232 180 C232 100 194 14 128 14 Z"
+    fill="#ffffff"
+    stroke="#4a3a32"
+    stroke-width="9"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M78 92 C90 58 110 42 132 38 C112 58 98 84 94 116 Z"
+    fill="#ffffff"
+    opacity="0.75"
+  />
+  <path
+    d="M58 214 C62 254 88 280 118 290 C92 276 76 246 74 214 Z"
+    fill="#000000"
+    opacity="0.06"
+  />
+</svg>

@@ -1,120 +1,208 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, REGISTRY_KEYS, SCENE_KEYS } from '@/game/constants';
+import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
+import { CharacterView } from '@/ui/CharacterView';
+import { ConfirmDialog } from '@/ui/Modal';
+import { PetView } from '@/ui/PetView';
+import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
-const DECORATIVE_STARS = [
-  { x: 170, y: 150, size: 56, alpha: 0.55 },
-  { x: 1120, y: 130, size: 64, alpha: 0.5 },
-  { x: 920, y: 210, size: 40, alpha: 0.4 },
-  { x: 360, y: 250, size: 36, alpha: 0.35 },
+const DECORATIONS = [
+  { x: 112, y: 118, size: 54, angle: -12 },
+  { x: 1160, y: 92, size: 64, angle: 18 },
+  { x: 1040, y: 300, size: 36, angle: 8 },
+  { x: 220, y: 300, size: 42, angle: -20 },
 ] as const;
 
 export class MenuScene extends Phaser.Scene {
   private soundButton?: Button;
+  private dialog?: ConfirmDialog;
 
   constructor() {
     super(SCENE_KEYS.MENU);
   }
 
   create(): void {
-    this.createBackground();
+    this.dialog = undefined;
+    drawBackdrop(this);
+    this.createDecorations();
 
-    for (const star of DECORATIVE_STARS) {
+    for (const decoration of DECORATIONS) {
       this.add
-        .image(star.x, star.y, 'star')
-        .setDisplaySize(star.size, star.size)
-        .setAlpha(star.alpha);
+        .image(decoration.x, decoration.y, 'icon-heart')
+        .setDisplaySize(decoration.size, decoration.size)
+        .setAngle(decoration.angle)
+        .setAlpha(0.55);
     }
 
+    this.createPreviews();
+    this.createTitle();
+
+    const pet = save.pet;
+    const player = save.playerLook;
+    const hasSave = player !== null || pet !== null;
+
+    const mainLabel = pet ? text.continueWith(pet.name) : player ? text.continue : text.start;
+
+    new Button(this, {
+      x: GAME_WIDTH / 2,
+      y: 392,
+      label: mainLabel,
+      width: 430,
+      height: 100,
+      fontSize: 40,
+      onClick: () => this.startJourney(),
+    });
+
+    if (hasSave) {
+      new Button(this, {
+        x: GAME_WIDTH / 2,
+        y: 512,
+        label: text.newGame,
+        width: 330,
+        height: 76,
+        fontSize: 28,
+        color: COLORS.panelLight,
+        textColor: COLORS.text,
+        onClick: () => this.confirmNewGame(),
+      });
+    }
+
+    this.soundButton = new Button(this, {
+      x: GAME_WIDTH / 2,
+      y: hasSave ? 624 : 512,
+      label: this.soundLabel(),
+      width: 250,
+      height: 72,
+      fontSize: 26,
+      color: COLORS.teal,
+      textColor: COLORS.textDark,
+      onClick: () => this.toggleSound(),
+    });
+
+    this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 28, text.saveHint, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '20px',
+        color: COLORS.textMuted,
+      })
+      .setOrigin(0.5);
+
+    this.input.keyboard?.on('keydown-ENTER', () => this.startJourney());
+    this.input.keyboard?.on('keydown-SPACE', () => this.startJourney());
+  }
+
+  private createTitle(): void {
+    this.add
+      .text(GAME_WIDTH / 2, 150, text.title, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '150px',
+        color: COLORS.textAccent,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setShadow(0, 10, '#ffffff', 0, true, true);
+
+    this.add
+      .text(GAME_WIDTH / 2, 254, text.subtitle, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '34px',
+        color: COLORS.textMuted,
+      })
+      .setOrigin(0.5);
+  }
+
+  private createPreviews(): void {
+    const player = save.playerLook;
+    const pet = save.pet;
+
+    if (player) {
+      const character = new CharacterView(this, 300, 628, 260, player);
+      character.startIdle();
+      this.tweens.add({
+        targets: character,
+        y: 622,
+        duration: 1700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else {
+      this.add.image(300, 520, 'icon-paw').setDisplaySize(164, 164).setAlpha(0.55).setAngle(-8);
+    }
+
+    if (pet) {
+      const petView = new PetView(this, 980, 632, 224, pet.id);
+      petView.startIdle();
+      this.add
+        .text(980, 676, pet.name, {
+          fontFamily: FONT_FAMILY,
+          fontSize: '30px',
+          color: COLORS.text,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5);
+    } else {
+      this.add.image(980, 520, 'icon-star').setDisplaySize(150, 150).setAlpha(0.5).setAngle(12);
+    }
+  }
+
+  private createDecorations(): void {
     this.tweens.add({
-      targets: this.add.image(1035, 512, 'player').setDisplaySize(168, 168),
-      y: 496,
-      duration: 1500,
+      targets: this.add
+        .image(1030, 170, 'icon-paw')
+        .setDisplaySize(46, 46)
+        .setAlpha(0.35)
+        .setAngle(18),
+      y: 156,
+      duration: 1900,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
     this.tweens.add({
-      targets: this.add.image(245, 512, 'star').setDisplaySize(132, 132),
+      targets: this.add.image(176, 196, 'icon-star').setDisplaySize(40, 40).setAlpha(0.4),
       angle: 360,
-      duration: 9000,
+      duration: 12000,
       repeat: -1,
       ease: 'Linear',
     });
-
-    this.add
-      .text(GAME_WIDTH / 2, 170, text.title, {
-        fontFamily: FONT_FAMILY,
-        fontSize: '132px',
-        color: COLORS.text,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setShadow(0, 10, '#000000', 18, true, true);
-
-    this.add
-      .text(GAME_WIDTH / 2, 268, text.subtitle, {
-        fontFamily: FONT_FAMILY,
-        fontSize: '36px',
-        color: COLORS.textMuted,
-      })
-      .setOrigin(0.5);
-
-    new Button(this, {
-      x: GAME_WIDTH / 2,
-      y: 404,
-      label: text.start,
-      width: 340,
-      height: 108,
-      fontSize: 48,
-      onClick: () => this.startGame(),
-    });
-
-    this.soundButton = new Button(this, {
-      x: GAME_WIDTH / 2,
-      y: 522,
-      label: this.soundLabel(),
-      width: 230,
-      height: 72,
-      fontSize: 28,
-      color: COLORS.panelLight,
-      textColor: COLORS.text,
-      onClick: () => this.toggleSound(),
-    });
-
-    const best = save.bestScore;
-    if (best > 0) {
-      this.add
-        .text(GAME_WIDTH / 2, 600, text.best(best), {
-          fontFamily: FONT_FAMILY,
-          fontSize: '28px',
-          color: COLORS.textAccent,
-        })
-        .setOrigin(0.5);
-    }
-
-    this.add
-      .text(GAME_WIDTH / 2, 672, text.help, {
-        fontFamily: FONT_FAMILY,
-        fontSize: '26px',
-        color: COLORS.textMuted,
-      })
-      .setOrigin(0.5);
-
-    this.registry.set(REGISTRY_KEYS.BEST, best);
-
-    this.input.keyboard?.on('keydown-ENTER', () => this.startGame());
-    this.input.keyboard?.on('keydown-SPACE', () => this.startGame());
   }
 
-  private startGame(): void {
+  private startJourney(): void {
     audio.unlock();
-    this.scene.start(SCENE_KEYS.GAME);
+    if (save.pet) {
+      this.scene.start(SCENE_KEYS.HOME);
+      return;
+    }
+    if (save.playerLook) {
+      this.scene.start(SCENE_KEYS.PET_SELECT);
+      return;
+    }
+    this.scene.start(SCENE_KEYS.CHARACTER);
+  }
+
+  private confirmNewGame(): void {
+    if (this.dialog) {
+      return;
+    }
+    this.dialog = new ConfirmDialog(this, {
+      title: text.resetTitle,
+      body: text.resetBody,
+      confirmLabel: text.yes,
+      cancelLabel: text.no,
+      onConfirm: () => {
+        save.resetGame();
+        this.scene.restart();
+      },
+      onCancel: () => {
+        this.dialog = undefined;
+      },
+    });
   }
 
   private toggleSound(): void {
@@ -125,23 +213,5 @@ export class MenuScene extends Phaser.Scene {
 
   private soundLabel(): string {
     return audio.isEnabled ? text.soundOn : text.soundOff;
-  }
-
-  private createBackground(): void {
-    const graphics = this.add.graphics();
-    graphics.fillGradientStyle(
-      COLORS.backgroundTop,
-      COLORS.backgroundTop,
-      COLORS.backgroundBottom,
-      COLORS.backgroundBottom,
-      1,
-    );
-    graphics.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    graphics.fillStyle(0xffffff, 0.04);
-    graphics.fillCircle(180, 620, 240);
-    graphics.fillCircle(1120, 650, 300);
-    graphics.fillStyle(COLORS.accent, 0.04);
-    graphics.fillCircle(640, 360, 360);
   }
 }

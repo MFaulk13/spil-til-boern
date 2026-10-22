@@ -12,6 +12,7 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 1400,
+    assetsInlineLimit: 0,
   },
   server: {
     host: true,

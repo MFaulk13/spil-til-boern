@@ -1,27 +1,53 @@
 import { MIN_TOUCH_TARGET } from '@/game/constants';
+import type { CareNeed } from '@/game/types';
+import type { CareAction, Mood } from '@/systems/pet';
 
 export const COLORS = {
-  background: 0x101a2e,
-  backgroundTop: 0x16233b,
-  backgroundBottom: 0x0b1424,
-  panel: 0x1b2740,
-  panelLight: 0x243554,
-  primary: 0xff6b6b,
-  primaryDark: 0xd94f4f,
-  accent: 0xffd166,
+  background: 0xfff6e5,
+  backgroundTop: 0xffe9c7,
+  backgroundBottom: 0xffd7a8,
+  panel: 0xfff8ee,
+  panelLight: 0xfff1dd,
+  primary: 0xff8b7d,
+  primaryDark: 0xe06a5e,
+  accent: 0xffc94d,
   accentDark: 0xe0a800,
-  teal: 0x2ec4b6,
-  tealDark: 0x1b9e8f,
-  ground: 0x2e7d5b,
-  groundDark: 0x246348,
-  hill: 0x276a4f,
-  text: '#f7f9fc',
-  textDark: '#101a2e',
-  textMuted: '#a9b4c7',
-  textAccent: '#ffd166',
+  teal: 0x62c9b8,
+  tealDark: 0x3fa697,
+  sky: 0xa8d8f0,
+  lavender: 0xc9b2e8,
+  ground: 0xa7d8a0,
+  groundDark: 0x7fbb7a,
+  hill: 0x8acb8a,
+  ink: 0x3a2e2a,
+  text: '#3a2e2a',
+  textDark: '#3a2e2a',
+  textMuted: '#7a6a62',
+  textAccent: '#b5561f',
+  white: '#ffffff',
 } as const;
 
-export const FONT_FAMILY = "system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+export const FONT_FAMILY =
+  "'Nunito', 'Segoe UI Rounded', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+export const NEED_COLORS: Record<CareNeed, number> = {
+  hunger: 0xff8b7d,
+  joy: 0xffc94d,
+  energy: 0x62c9b8,
+};
+
+export const CARE_COLORS: Record<CareAction, number> = {
+  feed: 0xff8b7d,
+  play: 0xffc94d,
+  pet: 0xc9b2e8,
+  sleep: 0x62c9b8,
+};
+
+export const MOOD_COLORS: Record<Mood, string> = {
+  happy: '#3fa697',
+  okay: '#b5561f',
+  sad: '#6b7fa8',
+};
 
 export const BUTTON_SIZE = {
   width: 300,

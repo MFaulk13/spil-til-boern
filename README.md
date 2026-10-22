@@ -1,7 +1,9 @@
-# spil
+# Gotar
 
-Et browserbaseret spil til børn i 3. klasse. Spillet kan åbnes via et link uden
-download eller installation og virker på tablet og desktop i landskabsformat.
+Gotar er et browserbaseret pasningsspil til børn i 3. klasse. Man laver sin
+figur, vælger et æg, udklækker sit kæledyr og passer det. Spillet kan åbnes via
+et link uden download eller installation og virker på tablet og desktop i
+landskabsformat.
 
 Projektet er bygget med [Phaser 3](https://phaser.io/), Vite og TypeScript.
 
@@ -33,13 +35,24 @@ computerens IPv4-adresse og åbn `http://<ip>:5173` på tabletten.
 
 ```text
 src/
-  assets/images/   # grafik (foreløbigt SVG-placeholders)
-  game/            # Phaser-config, konstanter og danske tekster
-  scenes/          # Boot, Preload, Menu, Game og UI
-  systems/         # lyd og gem
-  ui/              # knapper og farvetema
-  utils/           # rene hjælpefunktioner
-tests/             # unit tests
+  assets/
+    character/       # lagdelte SVG'er til figuren
+    eggs/            # æg og mønstre
+    pets/            # de 9 kæledyr
+    rooms/           # baggrunde
+    ui/              # ikoner
+  game/
+    catalog/         # data: udseende, kæledyr og genstande
+    assets.ts        # asset-manifest til Preload
+    config.ts        # Phaser-config og sceneliste
+    constants.ts
+    text.ts          # alle danske spiltekster
+    types.ts
+  scenes/            # Boot, Preload, Menu, Character, PetSelect, Hatch, Home
+  systems/           # lyd, gem og spil-logik
+  ui/                # knapper, karaktervisning, kæledyrsvisning, tema
+  utils/             # rene hjælpefunktioner
+tests/               # unit tests
 ```
 
 Danske spiltekster ligger i `src/game/text.ts`. Al anden kode er på engelsk.
@@ -48,10 +61,12 @@ Danske spiltekster ligger i `src/game/text.ts`. Al anden kode er på engelsk.
 
 - **Ny scene:** opret klassen i `src/scenes/`, og tilføj den til scene-listen i
   `src/game/config.ts`.
-- **Nye billeder:** læg dem i `src/assets/images/`, importér URL'en i
-  `PreloadScene`, og kald `this.load.image('<navn>', url)`.
-- **Ny lyd:** læg filer i `src/assets/audio/` og indlæs dem i `PreloadScene`.
-  Indtil videre genereres lydeffekter med Web Audio i `src/systems/audio.ts`.
+- **Nye billeder:** læg SVG-filen i `src/assets/`, tilføj den til
+  `src/game/assets.ts`, og brug nøglen i kataloget eller scenen.
+- **Nyt kæledyr:** tilføj det i `src/game/catalog/pets.ts`, `src/game/text.ts`
+  og asset-manifestet.
+- **Ny lyd:** lydeffekter og baggrundsmusik genereres med Web Audio i
+  `src/systems/audio.ts`.
 - **Fremgang og indstillinger:** brug `save` fra `src/systems/save.ts` – skriv
   ikke direkte til `localStorage`.
 
@@ -68,6 +83,6 @@ GitHub Pages' undermappe. Kører du build lokalt, bruges `/` som base.
 
 ## Næste skridt
 
-Spilmekanikkerne er endnu ikke bygget. Demo-scenen viser en figur, der kan
-flyttes med fingeren eller piletasterne, og som samler stjerner. Se
-`.opencode/plans/2026-10-21-borns-spil.md` for planen.
+Fase 2A er en vertikal slice: figur → æg → udklækning → hjem. Herefter følger
+behov, plejehandlinger, indretning og byen. Se
+`.opencode/plans/2026-10-22-gotar-fase-2.md` for den fulde plan.

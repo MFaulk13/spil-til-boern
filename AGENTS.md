@@ -6,8 +6,8 @@ Browserbaseret børnespil til 3. klasse. Bygget med Phaser 3, Vite og TypeScript
 Spillet ligger på GitHub Pages og skal kunne åbnes via et link uden installation.
 Primære enheder: tablet og desktop i landskabsformat (touch + mus).
 
-Arbejdstitlen er "spil", indtil spil-idéen er fastlagt. Se
-`.opencode/plans/2026-10-21-borns-spil.md` for planen.
+Spillet hedder **Gotar** og handler om at passe sit kæledyr. Se
+`.opencode/plans/2026-10-22-gotar-fase-2.md` for planen.
 
 ## Kommandoer
 
