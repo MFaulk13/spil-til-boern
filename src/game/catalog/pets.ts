@@ -3,6 +3,8 @@ import { createFullNeeds, type EggPattern, type PetId, type PetState } from '@/g
 
 export type PetVoice = 'bark' | 'meow' | 'neigh' | 'chirp' | 'splash' | 'bubble';
 
+export type PetMotion = 'walk' | 'hop' | 'swim' | 'float';
+
 export interface PetDefinition {
   id: PetId;
   label: string;
@@ -11,6 +13,7 @@ export interface PetDefinition {
   eggPattern: EggPattern;
   names: readonly string[];
   voice: PetVoice;
+  motion: PetMotion;
 }
 
 export const PETS: readonly PetDefinition[] = [
@@ -22,6 +25,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'spots',
     names: text.pets.names.dog,
     voice: 'bark',
+    motion: 'walk',
   },
   {
     id: 'puppy',
@@ -31,6 +35,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'waves',
     names: text.pets.names.puppy,
     voice: 'bark',
+    motion: 'walk',
   },
   {
     id: 'cat',
@@ -40,6 +45,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'stripes',
     names: text.pets.names.cat,
     voice: 'meow',
+    motion: 'walk',
   },
   {
     id: 'kitten',
@@ -49,6 +55,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'spots',
     names: text.pets.names.kitten,
     voice: 'meow',
+    motion: 'walk',
   },
   {
     id: 'rabbit',
@@ -58,6 +65,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'waves',
     names: text.pets.names.rabbit,
     voice: 'chirp',
+    motion: 'hop',
   },
   {
     id: 'horse',
@@ -67,6 +75,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'stripes',
     names: text.pets.names.horse,
     voice: 'neigh',
+    motion: 'walk',
   },
   {
     id: 'fish',
@@ -76,6 +85,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'waves',
     names: text.pets.names.fish,
     voice: 'splash',
+    motion: 'swim',
   },
   {
     id: 'turtle',
@@ -85,6 +95,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'spots',
     names: text.pets.names.turtle,
     voice: 'bubble',
+    motion: 'hop',
   },
   {
     id: 'axolotl',
@@ -94,6 +105,7 @@ export const PETS: readonly PetDefinition[] = [
     eggPattern: 'stripes',
     names: text.pets.names.axolotl,
     voice: 'bubble',
+    motion: 'float',
   },
 ];
 
@@ -112,6 +124,7 @@ export function createPetState(id: PetId, name: string, now = Date.now()): PetSt
     needs: createFullNeeds(),
     bond: 0,
     hatchedAt: now,
+    accessory: null,
   };
 }
 

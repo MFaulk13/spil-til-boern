@@ -2,7 +2,7 @@ import { CARE_NEEDS, clampNeed, type CareNeed, type Needs } from '@/game/types';
 
 export type Mood = 'happy' | 'okay' | 'sad';
 
-export type CareAction = 'feed' | 'play' | 'pet' | 'sleep';
+export type CareAction = 'feed' | 'play' | 'pet' | 'sleep' | 'treat';
 
 export interface CareEffect {
   need: CareNeed;
@@ -15,6 +15,7 @@ export const CARE_EFFECTS: Record<CareAction, CareEffect> = {
   play: { need: 'joy', amount: 30, hearts: 3 },
   pet: { need: 'joy', amount: 15, hearts: 1 },
   sleep: { need: 'energy', amount: 40, hearts: 1 },
+  treat: { need: 'hunger', amount: 20, hearts: 1 },
 };
 
 export const NEED_DECAY_PER_SECOND: Record<CareNeed, number> = {

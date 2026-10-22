@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { CharacterLook } from '@/game/types';
 import { buildCharacterLayers, normalizeLook } from '@/systems/appearance';
+import { isReducedMotion } from '@/systems/motion';
 import { COLORS } from '@/ui/theme';
 
 export class CharacterView extends Phaser.GameObjects.Container {
@@ -43,6 +44,9 @@ export class CharacterView extends Phaser.GameObjects.Container {
   startIdle(): void {
     this.idleTween?.remove();
     this.content.y = 0;
+    if (isReducedMotion()) {
+      return;
+    }
     this.idleTween = this.scene.tweens.add({
       targets: this.content,
       y: -6,
@@ -68,6 +72,9 @@ export class CharacterView extends Phaser.GameObjects.Container {
     if (walking) {
       this.stopIdle();
       this.walkTween?.remove();
+      if (isReducedMotion()) {
+        return;
+      }
       this.walkTween = this.scene.tweens.add({
         targets: this.content,
         y: -5,

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
+import { loadMissingAssets } from '@/game/assets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
+import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -51,6 +53,10 @@ export class TownScene extends Phaser.Scene {
     super(SCENE_KEYS.TOWN);
   }
 
+  preload(): void {
+    loadMissingAssets(this.load, this.textures, ['town-map']);
+  }
+
   create(): void {
     this.traveling = false;
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'town-map');
@@ -84,7 +90,18 @@ export class TownScene extends Phaser.Scene {
       this.createLocationCard(location);
     }
 
-    this.input.keyboard?.on('keydown-ESC', () => this.travelTo(SCENE_KEYS.HOME, text.town.travelHome));
+    this.input.keyboard?.on('keydown-H', () =>
+      this.travelTo(SCENE_KEYS.HOME, text.town.travelHome),
+    );
+    this.input.keyboard?.on('keydown-S', () =>
+      this.travelTo(SCENE_KEYS.SHOP, text.town.travelShop),
+    );
+    this.input.keyboard?.on('keydown-P', () =>
+      this.travelTo(SCENE_KEYS.PARK, text.town.travelPark),
+    );
+    this.input.keyboard?.on('keydown-ESC', () =>
+      this.travelTo(SCENE_KEYS.HOME, text.town.travelHome),
+    );
     this.cameras.main.fadeIn(260, 168, 216, 240);
   }
 
@@ -161,6 +178,11 @@ export class TownScene extends Phaser.Scene {
 
     this.tweens.add({ targets: banner, alpha: 1, y: 200, duration: 180, ease: 'Quad.easeOut' });
 
+    if (isReducedMotion()) {
+      this.time.delayedCall(180, () => this.finishTravel(sceneKey));
+      return;
+    }
+
     const runner = this.add.container(-90, 654).setDepth(901);
     const shadow = this.add.ellipse(0, 16, 78, 20, COLORS.ink, 0.18);
     const bubble = this.add.circle(0, 0, 36, COLORS.primary, 1);
@@ -173,12 +195,14 @@ export class TownScene extends Phaser.Scene {
       x: GAME_WIDTH + 90,
       duration: 760,
       ease: 'Sine.easeInOut',
-      onComplete: () => {
-        this.cameras.main.fadeOut(220, 168, 216, 240);
-        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-          this.scene.start(sceneKey);
-        });
-      },
+      onComplete: () => this.finishTravel(sceneKey),
+    });
+  }
+
+  private finishTravel(sceneKey: string): void {
+    this.cameras.main.fadeOut(220, 168, 216, 240);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.start(sceneKey);
     });
   }
 }

@@ -25,6 +25,7 @@ const pet: PetState = {
   needs: { hunger: 80, joy: 70, energy: 60 },
   bond: 2,
   hatchedAt: 1234,
+  accessory: 'bow',
 };
 
 describe('parseSave', () => {
@@ -47,6 +48,7 @@ describe('parseSave', () => {
 
     expect(saved.version).toBe(2);
     expect(saved.settings.sound).toBe(false);
+    expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toBeNull();
     expect(saved.pet).toBeNull();
   });
@@ -68,9 +70,11 @@ describe('parseSave', () => {
     );
 
     expect(saved.settings.sound).toBe(false);
+    expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toEqual({ look });
     expect(saved.pet).toEqual(pet);
     expect(saved.wallet.hearts).toBe(42);
+    expect(saved.wallet.earnedHearts).toBe(0);
     expect(saved.inventory).toEqual({ rug: 2 });
     expect(saved.home.furniture).toHaveLength(1);
     expect(saved.flags.tutorialDone).toBe(true);
@@ -98,6 +102,7 @@ describe('parseSave', () => {
     expect(saved.player).toBeNull();
     expect(saved.pet).toBeNull();
     expect(saved.wallet.hearts).toBe(20);
+    expect(saved.wallet.earnedHearts).toBe(0);
     expect(saved.inventory).toEqual({});
     expect(saved.home.furniture).toEqual([]);
   });
@@ -122,18 +127,24 @@ describe('parseSave', () => {
   it('ignores saves from a future version', () => {
     const saved = parseSave(JSON.stringify({ version: 99, settings: { sound: false }, pet }));
 
-    expect(saved).toEqual({ ...createDefaultSave(), settings: { sound: false } });
+    expect(saved).toEqual({
+      ...createDefaultSave(),
+      settings: { sound: false, reduceMotion: false },
+    });
   });
 });
 
 describe('SaveManager', () => {
-  it('persists the sound setting', () => {
+  it('persists the sound and motion settings', () => {
     const storage = createMemoryStorage();
     const manager = new SaveManager(storage);
 
     manager.setSoundEnabled(false);
+    manager.setReduceMotion(true);
 
-    expect(new SaveManager(storage).soundEnabled).toBe(false);
+    const reloaded = new SaveManager(storage);
+    expect(reloaded.soundEnabled).toBe(false);
+    expect(reloaded.reduceMotion).toBe(true);
   });
 
   it('persists the player look and pet', () => {
@@ -163,6 +174,7 @@ describe('SaveManager', () => {
 
     manager.addHearts(5);
     expect(manager.hearts).toBe(start + 5);
+    expect(manager.earnedHearts).toBe(5);
 
     expect(manager.spendHearts(3)).toBe(true);
     expect(manager.hearts).toBe(start + 2);
@@ -203,13 +215,27 @@ describe('SaveManager', () => {
     manager.setPlayerLook(look);
     manager.setPet(pet);
     manager.addHearts(10);
+    manager.setReduceMotion(true);
 
     manager.resetGame();
 
     expect(manager.playerLook).toBeNull();
     expect(manager.pet).toBeNull();
     expect(manager.hearts).toBe(20);
+    expect(manager.earnedHearts).toBe(0);
     expect(manager.soundEnabled).toBe(false);
+    expect(manager.reduceMotion).toBe(true);
+  });
+
+  it('sets and clears a pet accessory', () => {
+    const manager = new SaveManager(createMemoryStorage());
+    manager.setPet(pet);
+
+    manager.setPetAccessory('hat');
+    expect(manager.pet?.accessory).toBe('hat');
+
+    manager.setPetAccessory(null);
+    expect(manager.pet?.accessory).toBeNull();
   });
 
   it('reads a legacy spil save on first load', () => {

@@ -24,6 +24,7 @@ interface EggCard {
 
 export class PetSelectScene extends Phaser.Scene {
   private selected: PetId | null = null;
+  private selectionIndex = -1;
   private readonly cards = new Map<PetId, EggCard>();
   private confirmButton?: Button;
 
@@ -33,6 +34,7 @@ export class PetSelectScene extends Phaser.Scene {
 
   create(): void {
     this.selected = null;
+    this.selectionIndex = -1;
     this.cards.clear();
     drawBackdrop(this);
 
@@ -91,7 +93,18 @@ export class PetSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.input.keyboard?.on('keydown-ENTER', () => this.confirmSelection());
+    this.input.keyboard?.on('keydown-ENTER', () => {
+      if (this.selected) {
+        this.confirmSelection();
+        return;
+      }
+      this.selectIndex(0);
+    });
+    this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1, 0));
+    this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1, 0));
+    this.input.keyboard?.on('keydown-UP', () => this.moveSelection(0, -1));
+    this.input.keyboard?.on('keydown-DOWN', () => this.moveSelection(0, 1));
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start(SCENE_KEYS.CHARACTER));
   }
 
   private createEggCard(pet: PetDefinition, x: number, y: number): void {
@@ -126,8 +139,25 @@ export class PetSelectScene extends Phaser.Scene {
     this.drawCard(card, false);
   }
 
+  private moveSelection(deltaColumn: number, deltaRow: number): void {
+    const current = this.selectionIndex >= 0 ? this.selectionIndex : 0;
+    const column = Phaser.Math.Clamp((current % 3) + deltaColumn, 0, 2);
+    const row = Phaser.Math.Clamp(Math.floor(current / 3) + deltaRow, 0, 2);
+    this.selectIndex(row * 3 + column);
+  }
+
+  private selectIndex(index: number): void {
+    const pet = PETS[index];
+    if (!pet) {
+      return;
+    }
+    this.selectionIndex = index;
+    this.select(pet.id);
+  }
+
   private select(petId: PetId): void {
     this.selected = petId;
+    this.selectionIndex = PETS.findIndex((pet) => pet.id === petId);
     audio.play('pop');
     for (const card of this.cards.values()) {
       const selected = card.pet.id === petId;

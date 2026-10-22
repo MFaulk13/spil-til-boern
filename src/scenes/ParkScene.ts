@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
+import { loadMissingAssets } from '@/game/assets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { clampNeed, type Needs, type WorldRect } from '@/game/types';
 import { audio } from '@/systems/audio';
+import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
@@ -35,6 +37,10 @@ export class ParkScene extends Phaser.Scene {
     super(SCENE_KEYS.PARK);
   }
 
+  preload(): void {
+    loadMissingAssets(this.load, this.textures, ['park']);
+  }
+
   create(): void {
     const pet = save.pet;
     if (!pet) {
@@ -54,7 +60,7 @@ export class ParkScene extends Phaser.Scene {
     this.character.startIdle();
     this.character.setDepth(575);
 
-    this.petView = new PetView(this, 890, 575, 172, pet.id);
+    this.petView = new PetView(this, 890, 575, 172, pet.id, pet.accessory);
     this.petView.startIdle();
     this.petView.setDepth(601);
 
@@ -125,6 +131,9 @@ export class ParkScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0.96);
 
+    if (isReducedMotion()) {
+      return;
+    }
     this.tweens.add({
       targets: hint,
       alpha: 0.75,
@@ -141,29 +150,28 @@ export class ParkScene extends Phaser.Scene {
     const ball = this.add.image(0, -18, 'toy-ball').setDisplaySize(64, 64);
     container.add([this.ballGlow, ball]);
 
-    this.tweens.add({
-      targets: this.ballGlow,
-      scale: 1.22,
-      alpha: 0.1,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: this.ballGlow,
+        scale: 1.22,
+        alpha: 0.1,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
 
-    this.tweens.add({
-      targets: ball,
-      y: -28,
-      duration: 640,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+      this.tweens.add({
+        targets: ball,
+        y: -28,
+        duration: 640,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
-    container.setInteractive(
-      new Phaser.Geom.Circle(0, -18, 54),
-      Phaser.Geom.Circle.Contains,
-    );
+    container.setInteractive(new Phaser.Geom.Circle(0, -18, 54), Phaser.Geom.Circle.Contains);
     container.on('pointerup', () => this.startFetch());
     return container;
   }
@@ -171,9 +179,9 @@ export class ParkScene extends Phaser.Scene {
   private setupInput(): void {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as
-      | Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>
-      | undefined;
+      Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key> | undefined;
     this.input.keyboard?.on('keydown-ESC', () => this.goBack());
+    this.input.keyboard?.on('keydown-SPACE', () => this.startFetch());
 
     const zone = this.add
       .zone(GAME_WIDTH / 2, 545, GAME_WIDTH, 150)
@@ -243,11 +251,7 @@ export class ParkScene extends Phaser.Scene {
       BOUNDS.left + 40,
       BOUNDS.right - 40,
     );
-    const desiredY = Phaser.Math.Clamp(
-      this.character.y + 2,
-      BOUNDS.top + 6,
-      BOUNDS.bottom,
-    );
+    const desiredY = Phaser.Math.Clamp(this.character.y + 2, BOUNDS.top + 6, BOUNDS.bottom);
     const follow = 1 - Math.exp(-PET_FOLLOW_SPEED * seconds);
     const petDx = desiredX - this.petView.x;
     this.petView.x = Phaser.Math.Linear(this.petView.x, desiredX, follow);
@@ -290,12 +294,7 @@ export class ParkScene extends Phaser.Scene {
       BOUNDS.right - 60,
     );
     const targetY = Phaser.Math.Clamp(this.petView.y + 20, BOUNDS.top + 10, BOUNDS.bottom);
-    const distance = Phaser.Math.Distance.Between(
-      this.petView.x,
-      this.petView.y,
-      targetX,
-      targetY,
-    );
+    const distance = Phaser.Math.Distance.Between(this.petView.x, this.petView.y, targetX, targetY);
 
     this.ballGlow?.setVisible(false);
     this.tweens.add({
@@ -381,6 +380,9 @@ export class ParkScene extends Phaser.Scene {
   }
 
   private spawnHearts(x: number, y: number): void {
+    if (isReducedMotion()) {
+      return;
+    }
     for (let index = 0; index < FETCH_REWARD_HEARTS; index += 1) {
       const heart = this.add
         .image(x + Phaser.Math.Between(-28, 28), y + Phaser.Math.Between(-8, 12), 'icon-heart')
@@ -414,6 +416,10 @@ export class ParkScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(910);
 
+    if (isReducedMotion()) {
+      this.time.delayedCall(1600, () => toast.destroy());
+      return;
+    }
     this.tweens.add({
       targets: toast,
       y: toast.y - 40,

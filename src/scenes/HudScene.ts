@@ -10,6 +10,7 @@ import {
   type HudState,
   type PlacementState,
 } from '@/systems/events';
+import { isReducedMotion } from '@/systems/motion';
 import { moodOf, type CareAction } from '@/systems/pet';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
@@ -22,10 +23,11 @@ const CARE_LAYOUT: readonly {
   x: number;
   width: number;
 }[] = [
-  { action: 'feed', icon: 'icon-hunger', x: 210, width: 200 },
-  { action: 'play', icon: 'icon-joy', x: 430, width: 200 },
-  { action: 'pet', icon: 'icon-paw', x: 650, width: 200 },
-  { action: 'sleep', icon: 'icon-energy', x: 870, width: 200 },
+  { action: 'feed', icon: 'icon-hunger', x: 160, width: 168 },
+  { action: 'play', icon: 'icon-joy', x: 338, width: 168 },
+  { action: 'pet', icon: 'icon-paw', x: 516, width: 168 },
+  { action: 'sleep', icon: 'icon-energy', x: 694, width: 168 },
+  { action: 'treat', icon: 'treat-cookie', x: 872, width: 168 },
 ];
 
 const NEED_LAYOUT: readonly { need: CareNeed; x: number }[] = [
@@ -41,6 +43,9 @@ export class HudScene extends Phaser.Scene {
   private heartsText?: Phaser.GameObjects.Text;
   private lastHearts?: number;
   private decorButton?: Button;
+  private treatButton?: Button;
+  private treatCount = 0;
+  private placementActive = false;
   private readonly careButtons: Button[] = [];
 
   constructor() {
@@ -58,6 +63,9 @@ export class HudScene extends Phaser.Scene {
     this.lastHearts = undefined;
     this.careButtons.length = 0;
     this.decorButton = undefined;
+    this.treatButton = undefined;
+    this.treatCount = 0;
+    this.placementActive = false;
     this.createTopPanel(pet.id, pet.name);
     this.createBottomPanel();
 
@@ -73,6 +81,7 @@ export class HudScene extends Phaser.Scene {
       needs: pet.needs,
       hearts: save.hearts,
       mood: moodOf(pet.needs),
+      treatCount: 0,
     });
 
     gameEvents.on(GAME_EVENTS.HUD_STATE, this.applyState, this);
@@ -161,16 +170,20 @@ export class HudScene extends Phaser.Scene {
         color: CARE_COLORS[item.action],
         onClick: () => gameEvents.emit(GAME_EVENTS.CARE_REQUESTED, item.action),
       });
+      if (item.action === 'treat') {
+        this.treatButton = button;
+        button.setEnabled(false);
+      }
       this.careButtons.push(button);
     }
 
     new Button(this, {
-      x: 1020,
+      x: 1025,
       y: 661,
       label: text.hud.town,
       iconKey: 'icon-shop',
-      iconSize: 30,
-      width: 96,
+      iconSize: 28,
+      width: 110,
       height: 80,
       fontSize: 22,
       color: COLORS.teal,
@@ -178,12 +191,12 @@ export class HudScene extends Phaser.Scene {
     });
 
     this.decorButton = new Button(this, {
-      x: 1166,
+      x: 1179,
       y: 661,
       label: text.hud.decor,
       iconKey: 'icon-paint',
-      iconSize: 30,
-      width: 192,
+      iconSize: 28,
+      width: 178,
       height: 80,
       fontSize: 22,
       color: COLORS.lavender,
@@ -193,9 +206,11 @@ export class HudScene extends Phaser.Scene {
   }
 
   private handlePlacementState(state: PlacementState): void {
+    this.placementActive = state.active;
     for (const button of this.careButtons) {
       button.setEnabled(!state.active);
     }
+    this.treatButton?.setEnabled(!state.active && this.treatCount > 0);
     this.decorButton?.setLabel(state.active ? text.hud.decorDone : text.hud.decor);
     this.decorButton?.setColor(state.active ? COLORS.primary : COLORS.lavender);
   }
@@ -209,7 +224,12 @@ export class HudScene extends Phaser.Scene {
     this.moodText?.setText(text.mood[state.mood]);
     this.moodText?.setColor(MOOD_COLORS[state.mood]);
 
-    if (this.lastHearts !== undefined && state.hearts !== this.lastHearts && this.heartsText) {
+    if (
+      !isReducedMotion() &&
+      this.lastHearts !== undefined &&
+      state.hearts !== this.lastHearts &&
+      this.heartsText
+    ) {
       this.tweens.add({
         targets: this.heartsText,
         scale: 1.18,
@@ -219,6 +239,8 @@ export class HudScene extends Phaser.Scene {
       });
     }
 
+    this.treatCount = state.treatCount;
+    this.treatButton?.setEnabled(!this.placementActive && state.treatCount > 0);
     this.lastHearts = state.hearts;
     this.heartsText?.setText(String(state.hearts));
   }
@@ -239,6 +261,11 @@ export class HudScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(10);
+
+    if (isReducedMotion()) {
+      label.destroy();
+      return;
+    }
 
     this.tweens.add({
       targets: label,

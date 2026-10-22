@@ -26,9 +26,9 @@ import { COLORS, FONT_FAMILY } from '@/ui/theme';
 const PREVIEW = { x: 330, groundY: 640, size: 330 } as const;
 const PANEL = { x: 52, y: 132, width: 556, height: 536 } as const;
 const TAB_X = [700, 790, 880, 970, 1060, 1150] as const;
-const OPTION_X = [770, 925, 1080] as const;
+const OPTION_X = [760, 890, 1020, 1150] as const;
 const OPTION_Y = [326, 476] as const;
-const TILE_SIZE = 136;
+const TILE_SIZE = 116;
 
 interface StyleTileOptions {
   x: number;
@@ -67,6 +67,13 @@ export class CharacterScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ENTER', () => this.goNext());
     this.input.keyboard?.on('keydown-R', () => this.randomize());
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start(SCENE_KEYS.MENU));
+    APPEARANCE_CATEGORIES.forEach((category, index) => {
+      this.input.keyboard?.on(
+        `keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][index]}`,
+        () => this.setCategory(category),
+      );
+    });
   }
 
   private createTitle(): void {
@@ -217,7 +224,7 @@ export class CharacterScene extends Phaser.Scene {
     onSelect: (option: StyleOption) => void,
   ): void {
     options.forEach((option, index) => {
-      const x = OPTION_X[index % 3];
+      const x = OPTION_X[index % OPTION_X.length];
       const y = OPTION_Y[Math.floor(index / 3)];
       const isNone = option.id === 'none';
       let tint: number | undefined;
@@ -275,7 +282,7 @@ export class CharacterScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     } else if (options.imageKey && this.textures.exists(options.imageKey)) {
-      const image = this.add.image(0, -16, options.imageKey).setDisplaySize(88, 88);
+      const image = this.add.image(0, -14, options.imageKey).setDisplaySize(74, 74);
       if (options.tint !== undefined) {
         image.setTint(options.tint);
       }
@@ -286,7 +293,7 @@ export class CharacterScene extends Phaser.Scene {
       this.add
         .text(0, 47, options.label, {
           fontFamily: FONT_FAMILY,
-          fontSize: '15px',
+          fontSize: '14px',
           color: COLORS.text,
           fontStyle: 'bold',
           align: 'center',
@@ -308,7 +315,7 @@ export class CharacterScene extends Phaser.Scene {
     onSelect: (option: ColorOption) => void,
   ): void {
     options.forEach((option, index) => {
-      const x = OPTION_X[index % 3];
+      const x = OPTION_X[index % OPTION_X.length];
       const y = OPTION_Y[Math.floor(index / 3)];
       this.optionLayer.add(this.createColorTile(x, y, option, option.id === selectedId, onSelect));
     });

@@ -24,10 +24,10 @@ const STARTING_HEARTS = 20;
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
-    settings: { sound: true },
+    settings: { sound: true, reduceMotion: false },
     player: null,
     pet: null,
-    wallet: { hearts: STARTING_HEARTS },
+    wallet: { hearts: STARTING_HEARTS, earnedHearts: 0 },
     inventory: {},
     home: { furniture: [] },
     flags: { tutorialDone: false },
@@ -107,6 +107,7 @@ function parsePet(value: unknown): PetState | null {
     needs: parseNeeds(value.needs),
     bond: readCount(value.bond, 0),
     hatchedAt: readCount(value.hatchedAt, 0),
+    accessory: value.accessory === null ? null : readText(value.accessory),
   };
 }
 
@@ -160,9 +161,15 @@ function parseFurniture(value: unknown): PlacedFurniture[] {
   return furniture;
 }
 
-function readSound(parsed: Record<string, unknown>, fallback: boolean): boolean {
+function readSettings(
+  parsed: Record<string, unknown>,
+  fallback: SaveData['settings'],
+): SaveData['settings'] {
   const settings = isRecord(parsed.settings) ? parsed.settings : {};
-  return readBoolean(settings.sound, fallback);
+  return {
+    sound: readBoolean(settings.sound, fallback.sound),
+    reduceMotion: readBoolean(settings.reduceMotion, fallback.reduceMotion),
+  };
 }
 
 export function parseSave(raw: string | null): SaveData {
@@ -182,9 +189,9 @@ export function parseSave(raw: string | null): SaveData {
     return fallback;
   }
 
-  const sound = readSound(parsed, fallback.settings.sound);
+  const settings = readSettings(parsed, fallback.settings);
   if (parsed.version !== SAVE_VERSION) {
-    return { ...fallback, settings: { sound } };
+    return { ...fallback, settings };
   }
 
   const player = isRecord(parsed.player) ? parsed.player : null;
@@ -195,10 +202,13 @@ export function parseSave(raw: string | null): SaveData {
 
   return {
     version: SAVE_VERSION,
-    settings: { sound },
+    settings,
     player: look ? { look } : null,
     pet: parsePet(parsed.pet),
-    wallet: { hearts: readCount(wallet.hearts, STARTING_HEARTS) },
+    wallet: {
+      hearts: readCount(wallet.hearts, STARTING_HEARTS),
+      earnedHearts: readCount(wallet.earnedHearts, 0),
+    },
     inventory: parseInventory(parsed.inventory),
     home: { furniture: parseFurniture(home.furniture) },
     flags: {
@@ -248,6 +258,10 @@ export class SaveManager {
     return this.data.settings.sound;
   }
 
+  get reduceMotion(): boolean {
+    return this.data.settings.reduceMotion;
+  }
+
   get playerLook(): CharacterLook | null {
     return this.data.player?.look ?? null;
   }
@@ -258,6 +272,10 @@ export class SaveManager {
 
   get hearts(): number {
     return this.data.wallet.hearts;
+  }
+
+  get earnedHearts(): number {
+    return this.data.wallet.earnedHearts;
   }
 
   get inventory(): Readonly<Record<string, number>> {
@@ -280,6 +298,14 @@ export class SaveManager {
     this.persist();
   }
 
+  setReduceMotion(enabled: boolean): void {
+    if (this.data.settings.reduceMotion === enabled) {
+      return;
+    }
+    this.data.settings.reduceMotion = enabled;
+    this.persist();
+  }
+
   setPlayerLook(look: CharacterLook): void {
     this.data.player = { look: { ...look } };
     this.persist();
@@ -287,6 +313,14 @@ export class SaveManager {
 
   setPet(pet: PetState): void {
     this.data.pet = { ...pet, needs: { ...pet.needs } };
+    this.persist();
+  }
+
+  setPetAccessory(accessory: string | null): void {
+    if (!this.data.pet) {
+      return;
+    }
+    this.data.pet.accessory = accessory;
     this.persist();
   }
 
@@ -306,7 +340,9 @@ export class SaveManager {
     if (count <= 0) {
       return;
     }
-    this.data.wallet.hearts += Math.floor(count);
+    const amount = Math.floor(count);
+    this.data.wallet.hearts += amount;
+    this.data.wallet.earnedHearts += amount;
     this.persist();
   }
 
@@ -377,8 +413,8 @@ export class SaveManager {
   }
 
   resetGame(): void {
-    const sound = this.data.settings.sound;
-    this.data = { ...createDefaultSave(), settings: { sound } };
+    const { sound, reduceMotion } = this.data.settings;
+    this.data = { ...createDefaultSave(), settings: { sound, reduceMotion } };
     this.persist();
   }
 

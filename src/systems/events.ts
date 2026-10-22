@@ -23,6 +23,7 @@ export interface HudState {
   needs: Needs;
   hearts: number;
   mood: Mood;
+  treatCount: number;
 }
 
 export interface CareFeedback {

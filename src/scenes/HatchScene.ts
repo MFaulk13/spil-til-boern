@@ -4,6 +4,7 @@ import { EGG_TAP_COUNT, GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/const
 import { text } from '@/game/text';
 import { isPetId, type PetId } from '@/game/types';
 import { audio } from '@/systems/audio';
+import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { EggView } from '@/ui/EggView';
@@ -56,6 +57,7 @@ export class HatchScene extends Phaser.Scene {
   private progressText!: Phaser.GameObjects.Text;
   private tapIcon?: Phaser.GameObjects.Image;
   private selectedName = '';
+  private namePanelOpen = false;
   private readonly nameButtons = new Map<string, Button>();
 
   constructor() {
@@ -70,6 +72,7 @@ export class HatchScene extends Phaser.Scene {
     this.taps = 0;
     this.hatched = false;
     this.selectedName = '';
+    this.namePanelOpen = false;
     this.nameButtons.clear();
     this.petDefinition = getPet(this.petId);
 
@@ -92,6 +95,18 @@ export class HatchScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0.5);
+
+    this.input.keyboard?.on('keydown-SPACE', () => this.tapEgg());
+    this.input.keyboard?.on('keydown-ENTER', () => {
+      if (this.namePanelOpen) {
+        this.finishHatch();
+      }
+    });
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (!this.hatched) {
+        this.scene.start(SCENE_KEYS.PET_SELECT);
+      }
+    });
   }
 
   private createRoom(): void {
@@ -142,14 +157,16 @@ export class HatchScene extends Phaser.Scene {
       .image(GAME_WIDTH / 2 + 250, 132, 'icon-tap')
       .setDisplaySize(46, 46)
       .setAlpha(0.7);
-    this.tweens.add({
-      targets: this.tapIcon,
-      y: 122,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: this.tapIcon,
+        y: 122,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
   }
 
   private createNest(): void {
@@ -220,32 +237,40 @@ export class HatchScene extends Phaser.Scene {
 
     const egg = this.egg;
     if (egg) {
-      this.tweens.add({
-        targets: egg,
-        scale: 1.5,
-        angle: 18,
-        alpha: 0,
-        duration: 260,
-        ease: 'Quad.easeIn',
-        onComplete: () => egg.destroy(),
-      });
+      if (isReducedMotion()) {
+        egg.destroy();
+      } else {
+        this.tweens.add({
+          targets: egg,
+          scale: 1.5,
+          angle: 18,
+          alpha: 0,
+          duration: 260,
+          ease: 'Quad.easeIn',
+          onComplete: () => egg.destroy(),
+        });
+      }
     }
     this.crackGraphics?.setAlpha(0);
-    this.spawnBurst(EGG_X, 430);
+    if (!isReducedMotion()) {
+      this.spawnBurst(EGG_X, 430);
+    }
     this.showPet();
   }
 
   private showPet(): void {
     const pet = new PetView(this, PET_X, PET_GROUND_Y, 250, this.petId);
-    pet.setScale(0.35).setAlpha(0);
     pet.startIdle();
-    this.tweens.add({
-      targets: pet,
-      scale: 1,
-      alpha: 1,
-      duration: 420,
-      ease: 'Back.easeOut',
-    });
+    if (!isReducedMotion()) {
+      pet.setScale(0.35).setAlpha(0);
+      this.tweens.add({
+        targets: pet,
+        scale: 1,
+        alpha: 1,
+        duration: 420,
+        ease: 'Back.easeOut',
+      });
+    }
 
     this.add
       .text(PET_X, 208, text.hatch.reveal(this.petDefinition.label), {
@@ -297,9 +322,18 @@ export class HatchScene extends Phaser.Scene {
     const names = this.petDefinition.names;
     this.selectedName = names[0] ?? this.petDefinition.label;
 
+    this.namePanelOpen = true;
     names.forEach((name, index) => {
       const column = index % 2;
       const row = Math.floor(index / 2);
+      this.input.keyboard?.on(
+        `keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][index]}`,
+        () => {
+          if (this.namePanelOpen) {
+            this.selectName(name);
+          }
+        },
+      );
       const button = new Button(this, {
         x: column === 0 ? -118 : 118,
         y: -86 + row * 72,
@@ -327,6 +361,9 @@ export class HatchScene extends Phaser.Scene {
     });
     panel.add(done);
 
+    if (isReducedMotion()) {
+      return;
+    }
     panel.setAlpha(0).setScale(0.94);
     this.tweens.add({
       targets: panel,
@@ -346,6 +383,10 @@ export class HatchScene extends Phaser.Scene {
   }
 
   private finishHatch(): void {
+    if (!this.namePanelOpen) {
+      return;
+    }
+    this.namePanelOpen = false;
     save.setPet(createPetState(this.petId, this.selectedName));
     audio.play(this.petDefinition.voice);
     this.scene.start(SCENE_KEYS.HOME);

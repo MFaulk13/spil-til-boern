@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ASSET_MANIFEST } from '@/game/assets';
+import { CORE_ASSETS } from '@/game/assets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
@@ -15,7 +15,7 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     this.createLoadingUi();
 
-    for (const asset of ASSET_MANIFEST) {
+    for (const asset of CORE_ASSETS) {
       this.load.svg(asset.key, asset.url, { width: asset.width, height: asset.height });
     }
   }

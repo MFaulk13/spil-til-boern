@@ -45,11 +45,12 @@ describe('tickNeeds', () => {
 });
 
 describe('applyCare', () => {
-  it('feeds, plays, pets and lets the pet sleep with the designed effects', () => {
+  it('feeds, plays, pets, treats and lets the pet sleep with the designed effects', () => {
     expect(applyCare({ hunger: 40, joy: 40, energy: 40 }, 'feed').needs.hunger).toBe(75);
     expect(applyCare({ hunger: 40, joy: 40, energy: 40 }, 'play').needs.joy).toBe(70);
     expect(applyCare({ hunger: 40, joy: 40, energy: 40 }, 'pet').needs.joy).toBe(55);
     expect(applyCare({ hunger: 40, joy: 40, energy: 40 }, 'sleep').needs.energy).toBe(80);
+    expect(applyCare({ hunger: 40, joy: 40, energy: 40 }, 'treat').needs.hunger).toBe(60);
   });
 
   it('clamps the raised need at 100', () => {

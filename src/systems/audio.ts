@@ -16,7 +16,11 @@ export type SfxName =
   | 'eat'
   | 'play'
   | 'love'
-  | 'sleep';
+  | 'sleep'
+  | 'happy'
+  | 'sad'
+  | 'unlock'
+  | 'error';
 
 interface Tone {
   frequency: number;
@@ -103,6 +107,30 @@ const SFX: Record<SfxName, Tone[]> = {
   sleep: [
     { frequency: 392, endFrequency: 261.63, delay: 0, duration: 0.5, type: 'sine', gain: 0.12 },
     { frequency: 329.63, endFrequency: 196, delay: 0.4, duration: 0.6, type: 'sine', gain: 0.09 },
+  ],
+  happy: [
+    { frequency: 659.25, delay: 0, duration: 0.1, type: 'triangle', gain: 0.14 },
+    { frequency: 783.99, delay: 0.08, duration: 0.1, type: 'triangle', gain: 0.14 },
+    { frequency: 1046.5, delay: 0.16, duration: 0.22, type: 'triangle', gain: 0.13 },
+  ],
+  sad: [
+    { frequency: 392, endFrequency: 349.23, delay: 0, duration: 0.32, type: 'sine', gain: 0.12 },
+    {
+      frequency: 293.66,
+      endFrequency: 261.63,
+      delay: 0.28,
+      duration: 0.42,
+      type: 'sine',
+      gain: 0.1,
+    },
+  ],
+  unlock: [
+    { frequency: 587.33, delay: 0, duration: 0.12, type: 'sine', gain: 0.16 },
+    { frequency: 880, delay: 0.08, duration: 0.12, type: 'sine', gain: 0.16 },
+    { frequency: 1174.66, delay: 0.16, duration: 0.28, type: 'sine', gain: 0.14 },
+  ],
+  error: [
+    { frequency: 260, endFrequency: 180, delay: 0, duration: 0.2, type: 'square', gain: 0.08 },
   ],
 };
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/game/constants';
+import { isReducedMotion } from '@/systems/motion';
 import { Button } from '@/ui/Button';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -16,6 +17,9 @@ const PANEL_WIDTH = 760;
 const PANEL_HEIGHT = 380;
 
 export class ConfirmDialog extends Phaser.GameObjects.Container {
+  private keyHandler?: (event: KeyboardEvent) => void;
+  private closing = false;
+
   constructor(scene: Phaser.Scene, options: ConfirmDialogOptions) {
     super(scene, GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
@@ -78,18 +82,49 @@ export class ConfirmDialog extends Phaser.GameObjects.Container {
 
     this.add([backdrop, panel, blocker, title, body, confirm, cancel]);
     this.setDepth(1000);
-    this.setAlpha(0).setScale(0.94);
     scene.add.existing(this);
-    scene.tweens.add({
-      targets: this,
-      alpha: 1,
-      scale: 1,
-      duration: 180,
-      ease: 'Back.easeOut',
-    });
+
+    const handleKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Enter' || event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        this.close(options.onConfirm);
+      } else if (event.key === 'Escape' || event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        this.close(options.onCancel);
+      }
+    };
+    this.keyHandler = handleKey;
+    scene.input.keyboard?.on('keydown', handleKey);
+
+    if (!isReducedMotion()) {
+      this.setAlpha(0).setScale(0.94);
+      scene.tweens.add({
+        targets: this,
+        alpha: 1,
+        scale: 1,
+        duration: 180,
+        ease: 'Back.easeOut',
+      });
+    }
   }
 
   private close(callback?: () => void): void {
+    if (this.closing) {
+      return;
+    }
+    this.closing = true;
+
+    if (this.keyHandler) {
+      this.scene.input.keyboard?.off('keydown', this.keyHandler);
+      this.keyHandler = undefined;
+    }
+
+    if (isReducedMotion()) {
+      this.destroy(true);
+      callback?.();
+      return;
+    }
+
     this.scene.tweens.add({
       targets: this,
       alpha: 0,

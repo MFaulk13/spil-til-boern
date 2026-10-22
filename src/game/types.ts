@@ -55,6 +55,7 @@ export interface PetState {
   needs: Needs;
   bond: number;
   hatchedAt: number;
+  accessory: string | null;
 }
 
 export interface PlacedFurniture {
@@ -69,6 +70,7 @@ export interface SaveData {
   version: 2;
   settings: {
     sound: boolean;
+    reduceMotion: boolean;
   };
   player: {
     look: CharacterLook;
@@ -76,6 +78,7 @@ export interface SaveData {
   pet: PetState | null;
   wallet: {
     hearts: number;
+    earnedHearts: number;
   };
   inventory: Record<string, number>;
   home: {

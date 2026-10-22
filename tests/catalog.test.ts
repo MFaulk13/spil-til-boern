@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASSET_MANIFEST } from '@/game/assets';
+import { ASSET_MANIFEST, CORE_ASSETS, LAZY_ASSETS, LAZY_SCENE_ASSET_KEYS } from '@/game/assets';
 import {
   ACCESSORY_STYLES,
   EYE_STYLES,
@@ -10,7 +10,7 @@ import {
   OUTFIT_STYLES,
   SKIN_TONES,
 } from '@/game/catalog/appearance';
-import { ITEMS, getItem } from '@/game/catalog/items';
+import { ITEMS, getItem, isItemUnlocked, treatCount } from '@/game/catalog/items';
 import { PETS, createPetState, getPet } from '@/game/catalog/pets';
 import { ROOMS } from '@/game/catalog/rooms';
 import { createFullNeeds, ITEM_CATEGORIES, PET_IDS, type RoomId } from '@/game/types';
@@ -22,6 +22,12 @@ function expectUnique(ids: readonly string[]): void {
 }
 
 describe('asset manifest', () => {
+  it('splits the manifest into eager core assets and lazy scene assets', () => {
+    expect(CORE_ASSETS.length + LAZY_ASSETS.length).toBe(ASSET_MANIFEST.length);
+    expect(LAZY_ASSETS.map((asset) => asset.key)).toEqual([...LAZY_SCENE_ASSET_KEYS]);
+    expect(CORE_ASSETS.some((asset) => asset.key === 'room-living')).toBe(true);
+  });
+
   it('has unique keys and valid sizes', () => {
     expectUnique(ASSET_MANIFEST.map((asset) => asset.key));
     for (const asset of ASSET_MANIFEST) {
@@ -81,9 +87,28 @@ describe('item catalog', () => {
     }
   });
 
+  it('gates bonus items behind earned hearts', () => {
+    for (const item of ITEMS) {
+      expect(item.unlockAt).toBeGreaterThanOrEqual(0);
+      expect(item.unlockAt).toBeLessThanOrEqual(80);
+      expect(isItemUnlocked(item, item.unlockAt)).toBe(true);
+      expect(isItemUnlocked(item, item.unlockAt - 1)).toBe(false);
+    }
+
+    expect(ITEMS.some((item) => item.unlockAt > 0)).toBe(true);
+    expect(ITEMS.some((item) => !isItemUnlocked(item, 0))).toBe(true);
+  });
+
+  it('counts treats in the inventory', () => {
+    expect(treatCount({ inventory: { cookie: 2, apple: 1, rug: 9 } })).toBe(3);
+  });
+
   it('covers every shop category', () => {
     for (const category of ITEM_CATEGORIES) {
-      expect(ITEMS.some((item) => item.category === category), `empty: ${category}`).toBe(true);
+      expect(
+        ITEMS.some((item) => item.category === category),
+        `empty: ${category}`,
+      ).toBe(true);
     }
   });
 
@@ -170,6 +195,7 @@ describe('pet catalog', () => {
       expect(pet.label.length).toBeGreaterThan(0);
       expect(pet.names.length).toBeGreaterThanOrEqual(6);
       expect(pet.names.every((name) => name.trim().length > 0)).toBe(true);
+      expect(['walk', 'hop', 'swim', 'float']).toContain(pet.motion);
       expect(getPet(pet.id)).toBe(pet);
     }
   });
@@ -179,5 +205,6 @@ describe('pet catalog', () => {
 
     expect(state).toMatchObject({ id: 'rabbit', name: 'Hoppe', hatchedAt: 1234 });
     expect(state.needs).toEqual(createFullNeeds());
+    expect(state.accessory).toBeNull();
   });
 });

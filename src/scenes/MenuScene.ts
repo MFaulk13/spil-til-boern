@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
+import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
@@ -49,7 +50,7 @@ export class MenuScene extends Phaser.Scene {
 
     new Button(this, {
       x: GAME_WIDTH / 2,
-      y: 392,
+      y: hasSave ? 356 : 396,
       label: mainLabel,
       width: 430,
       height: 100,
@@ -60,7 +61,7 @@ export class MenuScene extends Phaser.Scene {
     if (hasSave) {
       new Button(this, {
         x: GAME_WIDTH / 2,
-        y: 512,
+        y: 466,
         label: text.newGame,
         width: 330,
         height: 76,
@@ -73,7 +74,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.soundButton = new Button(this, {
       x: GAME_WIDTH / 2,
-      y: hasSave ? 624 : 512,
+      y: hasSave ? 558 : 520,
       label: this.soundLabel(),
       width: 250,
       height: 72,
@@ -81,6 +82,18 @@ export class MenuScene extends Phaser.Scene {
       color: COLORS.teal,
       textColor: COLORS.textDark,
       onClick: () => this.toggleSound(),
+    });
+
+    new Button(this, {
+      x: GAME_WIDTH / 2,
+      y: hasSave ? 640 : 612,
+      label: this.motionLabel(),
+      width: 290,
+      height: 64,
+      fontSize: 23,
+      color: COLORS.lavender,
+      textColor: COLORS.textDark,
+      onClick: () => this.toggleMotion(),
     });
 
     this.add
@@ -93,6 +106,8 @@ export class MenuScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ENTER', () => this.startJourney());
     this.input.keyboard?.on('keydown-SPACE', () => this.startJourney());
+    this.input.keyboard?.on('keydown-S', () => this.toggleSound());
+    this.input.keyboard?.on('keydown-M', () => this.toggleMotion());
   }
 
   private createTitle(): void {
@@ -122,20 +137,22 @@ export class MenuScene extends Phaser.Scene {
     if (player) {
       const character = new CharacterView(this, 300, 628, 260, player);
       character.startIdle();
-      this.tweens.add({
-        targets: character,
-        y: 622,
-        duration: 1700,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
+      if (!isReducedMotion()) {
+        this.tweens.add({
+          targets: character,
+          y: 622,
+          duration: 1700,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
     } else {
       this.add.image(300, 520, 'icon-paw').setDisplaySize(164, 164).setAlpha(0.55).setAngle(-8);
     }
 
     if (pet) {
-      const petView = new PetView(this, 980, 632, 224, pet.id);
+      const petView = new PetView(this, 980, 632, 224, pet.id, pet.accessory);
       petView.startIdle();
       this.add
         .text(980, 676, pet.name, {
@@ -151,6 +168,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createDecorations(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.tweens.add({
       targets: this.add
         .image(1030, 170, 'icon-paw')
@@ -174,6 +194,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startJourney(): void {
+    if (this.dialog) {
+      return;
+    }
     audio.unlock();
     if (save.pet) {
       this.scene.start(SCENE_KEYS.HOME);
@@ -206,9 +229,24 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private toggleSound(): void {
+    if (this.dialog) {
+      return;
+    }
     audio.setEnabled(!audio.isEnabled);
     save.setSoundEnabled(audio.isEnabled);
     this.soundButton?.setLabel(this.soundLabel());
+  }
+
+  private toggleMotion(): void {
+    if (this.dialog) {
+      return;
+    }
+    save.setReduceMotion(!save.reduceMotion);
+    this.scene.restart();
+  }
+
+  private motionLabel(): string {
+    return save.reduceMotion ? text.motionCalm : text.motionFull;
   }
 
   private soundLabel(): string {

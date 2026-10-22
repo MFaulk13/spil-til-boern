@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
-import { itemsByCategory, type ItemDefinition } from '@/game/catalog/items';
+import { loadMissingAssets } from '@/game/assets';
+import { isItemUnlocked, itemsByCategory, type ItemDefinition } from '@/game/catalog/items';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { ITEM_CATEGORIES, type ItemCategory } from '@/game/types';
 import { audio } from '@/systems/audio';
+import { isReducedMotion } from '@/systems/motion';
 import { canAfford, itemCount, purchase } from '@/systems/economy';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
@@ -25,6 +27,10 @@ export class ShopScene extends Phaser.Scene {
 
   constructor() {
     super(SCENE_KEYS.SHOP);
+  }
+
+  preload(): void {
+    loadMissingAssets(this.load, this.textures, ['shop-room']);
   }
 
   create(): void {
@@ -66,6 +72,7 @@ export class ShopScene extends Phaser.Scene {
     this.createHeartPill();
     this.createCategoryTabs();
     this.refreshGrid();
+    this.setupKeyboard();
     this.cameras.main.fadeIn(240, 255, 246, 229);
   }
 
@@ -85,6 +92,19 @@ export class ShopScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0, 0.5);
+  }
+
+  private setupKeyboard(): void {
+    const keyboard = this.input.keyboard;
+    keyboard?.on('keydown-ONE', () => this.selectCategory('furniture'));
+    keyboard?.on('keydown-TWO', () => this.selectCategory('toy'));
+    keyboard?.on('keydown-THREE', () => this.selectCategory('accessory'));
+    keyboard?.on('keydown-FOUR', () => this.selectCategory('treat'));
+    keyboard?.on('keydown-ESC', () => {
+      if (!this.dialog) {
+        this.goBack();
+      }
+    });
   }
 
   private createCategoryTabs(): void {
@@ -112,7 +132,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private selectCategory(category: ItemCategory): void {
-    if (this.category === category) {
+    if (this.dialog || this.category === category) {
       return;
     }
     this.category = category;
@@ -131,6 +151,7 @@ export class ShopScene extends Phaser.Scene {
     items.forEach((item, index) => {
       const column = index % COLUMN_X.length;
       const row = Math.floor(index / COLUMN_X.length);
+      const unlocked = isItemUnlocked(item, save.earnedHearts);
       const card = new ItemCard(this, {
         x: COLUMN_X[column],
         y: ROW_Y[row] ?? ROW_Y[ROW_Y.length - 1],
@@ -139,6 +160,8 @@ export class ShopScene extends Phaser.Scene {
         item,
         owned: itemCount(save, item.id),
         affordable: canAfford(save, item.price),
+        locked: !unlocked,
+        lockLabel: unlocked ? undefined : text.shop.locked(item.unlockAt),
         onClick: (selected) => this.askToBuy(selected),
       });
       this.grid?.add(card);
@@ -150,7 +173,14 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
 
+    if (!isItemUnlocked(item, save.earnedHearts)) {
+      audio.play('error');
+      this.showToast(text.shop.locked(item.unlockAt));
+      return;
+    }
+
     if (!canAfford(save, item.price)) {
+      audio.play('error');
       this.showToast(text.shop.notEnough(item.price - save.hearts));
       return;
     }
@@ -173,14 +203,22 @@ export class ShopScene extends Phaser.Scene {
   private buy(item: ItemDefinition): void {
     const result = purchase(save, item.id, item.price);
     if (!result.ok) {
+      audio.play('error');
       this.showToast(text.shop.notEnough(item.price - result.hearts));
       return;
     }
 
-    audio.play('collect');
+    audio.play('unlock');
+    if (item.category === 'accessory' && save.pet) {
+      save.setPetAccessory(item.id);
+    }
     this.updateHearts();
     this.refreshGrid();
-    this.showToast(text.shop.bought(item.label));
+    this.showToast(
+      item.category === 'accessory' && save.pet
+        ? text.shop.boughtAndWorn(item.label)
+        : text.shop.bought(item.label),
+    );
   }
 
   private updateHearts(): void {
@@ -201,6 +239,11 @@ export class ShopScene extends Phaser.Scene {
       .setDepth(900)
       .setAlpha(0);
 
+    if (isReducedMotion()) {
+      toast.setAlpha(1).setY(224);
+      this.time.delayedCall(1600, () => toast.destroy());
+      return;
+    }
     this.tweens.add({
       targets: toast,
       alpha: 1,

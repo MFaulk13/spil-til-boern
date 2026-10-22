@@ -63,6 +63,8 @@ export const OUTFIT_STYLES: readonly StyleOption[] = [
   },
   { id: 'hoodie', label: text.appearance.outfitStyles.hoodie, assetKey: 'outfit-hoodie' },
   { id: 'shirt', label: text.appearance.outfitStyles.shirt, assetKey: 'outfit-shirt' },
+  { id: 'sweater', label: text.appearance.outfitStyles.sweater, assetKey: 'outfit-sweater' },
+  { id: 'raincoat', label: text.appearance.outfitStyles.raincoat, assetKey: 'outfit-raincoat' },
 ];
 
 export const OUTFIT_COLORS: readonly ColorOption[] = [
@@ -83,6 +85,11 @@ export const ACCESSORY_STYLES: readonly StyleOption[] = [
     id: 'headphones',
     label: text.appearance.accessories.headphones,
     assetKey: 'accessory-headphones',
+  },
+  {
+    id: 'scarf',
+    label: text.appearance.accessories.scarf,
+    assetKey: 'accessory-character-scarf',
   },
 ];
 

@@ -22,7 +22,7 @@ export const COLORS = {
   ink: 0x3a2e2a,
   text: '#3a2e2a',
   textDark: '#3a2e2a',
-  textMuted: '#7a6a62',
+  textMuted: '#5f514a',
   textAccent: '#b5561f',
   white: '#ffffff',
 } as const;
@@ -41,12 +41,13 @@ export const CARE_COLORS: Record<CareAction, number> = {
   play: 0xffc94d,
   pet: 0xc9b2e8,
   sleep: 0x62c9b8,
+  treat: 0xff9f70,
 };
 
 export const MOOD_COLORS: Record<Mood, string> = {
   happy: '#3fa697',
   okay: '#b5561f',
-  sad: '#6b7fa8',
+  sad: '#4f6699',
 };
 
 export const BUTTON_SIZE = {

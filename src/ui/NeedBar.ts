@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { text } from '@/game/text';
 import { clampNeed, type CareNeed } from '@/game/types';
+import { isReducedMotion } from '@/systems/motion';
 import { COLORS, FONT_FAMILY, NEED_COLORS } from '@/ui/theme';
 
 const ICON_SIZE = 30;
@@ -86,6 +87,9 @@ export class NeedBar extends Phaser.GameObjects.Container {
   }
 
   pulse(): this {
+    if (isReducedMotion()) {
+      return this;
+    }
     this.scene.tweens.add({
       targets: this.fill,
       alpha: 0.4,

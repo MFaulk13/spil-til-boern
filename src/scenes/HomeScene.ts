@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { getItem, type ItemDefinition } from '@/game/catalog/items';
+import { firstTreatId, getItem, treatCount, type ItemDefinition } from '@/game/catalog/items';
 import { getPet } from '@/game/catalog/pets';
 import { getRoom, ROOMS, type RoomDefinition } from '@/game/catalog/rooms';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import type { Needs, PetId, RoomId } from '@/game/types';
 import { normalizeLook } from '@/systems/appearance';
+import { isReducedMotion } from '@/systems/motion';
 import { audio } from '@/systems/audio';
 import { rewardCare } from '@/systems/economy';
 import {
@@ -23,6 +24,7 @@ import {
   moodOf,
   tickNeeds,
   type CareAction,
+  type Mood,
 } from '@/systems/pet';
 import { canPlace, clampCenter, createFurnitureUid, footprintOf } from '@/systems/placement';
 import { save } from '@/systems/save';
@@ -60,6 +62,7 @@ export class HomeScene extends Phaser.Scene {
     play: 0,
     pet: 0,
     sleep: 0,
+    treat: 0,
   };
   private bowl?: Phaser.GameObjects.Container;
   private ball?: Phaser.GameObjects.Container;
@@ -81,6 +84,7 @@ export class HomeScene extends Phaser.Scene {
   private floorZone?: Phaser.GameObjects.Zone;
   private movementHint?: Phaser.GameObjects.Container;
   private speechBubble?: Phaser.GameObjects.Container;
+  private lastMood: Mood = 'okay';
 
   constructor() {
     super(SCENE_KEYS.HOME);
@@ -99,7 +103,7 @@ export class HomeScene extends Phaser.Scene {
     this.moveTarget = null;
     this.autosaveElapsed = 0;
     this.hudElapsed = 0;
-    this.actionReadyAt = { feed: 0, play: 0, pet: 0, sleep: 0 };
+    this.actionReadyAt = { feed: 0, play: 0, pet: 0, sleep: 0, treat: 0 };
     this.placementMode = false;
     this.selectedUid = null;
     this.selectedItemId = null;
@@ -125,7 +129,14 @@ export class HomeScene extends Phaser.Scene {
     this.character.startIdle();
     this.character.setDepth(this.room.spawn.y);
 
-    this.petView = new PetView(this, this.room.spawn.x + 150, this.room.spawn.y, 176, pet.id);
+    this.petView = new PetView(
+      this,
+      this.room.spawn.x + 150,
+      this.room.spawn.y,
+      176,
+      pet.id,
+      pet.accessory,
+    );
     this.petView.startIdle();
     this.petView.setDepth(this.room.spawn.y + 1);
     this.petView.setInteractive(
@@ -144,6 +155,7 @@ export class HomeScene extends Phaser.Scene {
       this.createTutorial();
     }
 
+    this.lastMood = moodOf(this.needs);
     this.updateCareObjects();
     this.scene.launch(SCENE_KEYS.HUD);
     this.refreshPetMood();
@@ -184,8 +196,7 @@ export class HomeScene extends Phaser.Scene {
   private setupInput(): void {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as
-      | Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>
-      | undefined;
+      Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key> | undefined;
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.placementMode) {
         this.togglePlacement();
@@ -193,6 +204,13 @@ export class HomeScene extends Phaser.Scene {
       }
       this.returnToMenu();
     });
+    this.input.keyboard?.on('keydown-ONE', () => this.handleCare('feed'));
+    this.input.keyboard?.on('keydown-TWO', () => this.handleCare('play'));
+    this.input.keyboard?.on('keydown-THREE', () => this.handleCare('pet'));
+    this.input.keyboard?.on('keydown-FOUR', () => this.handleCare('sleep'));
+    this.input.keyboard?.on('keydown-FIVE', () => this.handleCare('treat'));
+    this.input.keyboard?.on('keydown-T', () => this.goToTown());
+    this.input.keyboard?.on('keydown-E', () => this.togglePlacement());
     this.input.on('pointermove', this.updateGhost, this);
   }
 
@@ -273,11 +291,7 @@ export class HomeScene extends Phaser.Scene {
       bounds.left + 40,
       bounds.right - 40,
     );
-    const desiredY = Phaser.Math.Clamp(
-      this.character.y - 8,
-      bounds.top + 6,
-      bounds.bottom,
-    );
+    const desiredY = Phaser.Math.Clamp(this.character.y - 8, bounds.top + 6, bounds.bottom);
     const follow = 1 - Math.exp(-PET_FOLLOW_SPEED * seconds);
     const petDx = desiredX - this.petView.x;
     this.petView.x = Phaser.Math.Linear(this.petView.x, desiredX, follow);
@@ -319,6 +333,21 @@ export class HomeScene extends Phaser.Scene {
     this.actionReadyAt[action] = now + ACTION_COOLDOWN;
     audio.unlock();
 
+    let consumedTreat: string | null = null;
+    if (action === 'treat') {
+      consumedTreat = firstTreatId(save);
+      if (!consumedTreat) {
+        audio.play('error');
+        this.showPetMessage(text.careNoTreat);
+        return;
+      }
+      if (applyCare(this.needs, action).gained <= 0) {
+        this.showPetMessage(text.care.full.treat);
+        return;
+      }
+      save.consumeItem(consumedTreat);
+    }
+
     const result = applyCare(this.needs, action);
     this.needs = result.needs;
     save.updateNeeds(this.needs);
@@ -334,6 +363,10 @@ export class HomeScene extends Phaser.Scene {
 
     if (action === 'feed') {
       this.completeTutorial();
+    }
+    if (consumedTreat) {
+      const treat = getItem(consumedTreat);
+      this.showPetMessage(`Nam! ${treat?.label ?? ''}`.trim());
     }
 
     if (result.gained <= 0) {
@@ -351,6 +384,7 @@ export class HomeScene extends Phaser.Scene {
   private playCareAnimation(action: CareAction): void {
     switch (action) {
       case 'feed':
+      case 'treat':
         this.petView.playNod();
         if (this.room.id === 'living') {
           this.wobble(this.bowl);
@@ -388,10 +422,14 @@ export class HomeScene extends Phaser.Scene {
 
   private refreshPetMood(): void {
     const mood = moodOf(this.needs);
+    if (mood !== this.lastMood) {
+      this.lastMood = mood;
+      audio.play(mood === 'happy' ? 'happy' : mood === 'sad' ? 'sad' : 'pop');
+    }
     this.petView.setMood(mood);
     this.petView.showNeedBubble(isNeedLow(this.needs) ? lowestNeed(this.needs) : null);
 
-    if (mood === 'happy') {
+    if (mood === 'happy' && !isReducedMotion()) {
       if (!this.moodHeartsTimer) {
         this.moodHeartsTimer = this.time.addEvent({
           delay: 7000,
@@ -415,6 +453,7 @@ export class HomeScene extends Phaser.Scene {
       needs: { ...this.needs },
       hearts: save.hearts,
       mood: moodOf(this.needs),
+      treatCount: treatCount(save),
     };
     gameEvents.emit(GAME_EVENTS.HUD_STATE, state);
   }
@@ -595,15 +634,12 @@ export class HomeScene extends Phaser.Scene {
       view.setDepth(1000);
       view.setAlpha(0.9);
     });
-    view.on(
-      'drag',
-      (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-        if (!this.placementMode) {
-          return;
-        }
-        view.setPosition(dragX, dragY);
-      },
-    );
+    view.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+      if (!this.placementMode) {
+        return;
+      }
+      view.setPosition(dragX, dragY);
+    });
     view.on('dragend', () => {
       if (!this.placementMode) {
         return;
@@ -821,12 +857,7 @@ export class HomeScene extends Phaser.Scene {
       return;
     }
 
-    const snapped = clampCenter(
-      item,
-      pointer.worldX,
-      pointer.worldY,
-      this.room.placementArea,
-    );
+    const snapped = clampCenter(item, pointer.worldX, pointer.worldY, this.room.placementArea);
     this.ghost.setPosition(snapped.x, snapped.y);
     const valid = canPlace(
       item,
@@ -859,12 +890,7 @@ export class HomeScene extends Phaser.Scene {
       return;
     }
 
-    const snapped = clampCenter(
-      item,
-      pointer.worldX,
-      pointer.worldY,
-      this.room.placementArea,
-    );
+    const snapped = clampCenter(item, pointer.worldX, pointer.worldY, this.room.placementArea);
     const valid = canPlace(
       item,
       snapped.x,
@@ -910,6 +936,11 @@ export class HomeScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(995);
+
+    if (isReducedMotion()) {
+      this.time.delayedCall(1300, () => toast.destroy());
+      return;
+    }
 
     this.tweens.add({
       targets: toast,
@@ -1026,43 +1057,49 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
 
     banner.add([background, icon, title, hint]);
-    banner.setAlpha(0).setScale(0.94);
-    this.tweens.add({
-      targets: banner,
-      alpha: 1,
-      scale: 1,
-      duration: 320,
-      delay: 400,
-      ease: 'Back.easeOut',
-    });
+    if (!isReducedMotion()) {
+      banner.setAlpha(0).setScale(0.94);
+      this.tweens.add({
+        targets: banner,
+        alpha: 1,
+        scale: 1,
+        duration: 320,
+        delay: 400,
+        ease: 'Back.easeOut',
+      });
+    }
 
     this.tutorialRing = this.add
       .circle(BOWL.x, BOWL.y - 24, 70)
       .setStrokeStyle(6, COLORS.primary, 0.95)
       .setDepth(950);
-    this.tweens.add({
-      targets: this.tutorialRing,
-      scale: 1.18,
-      alpha: 0.35,
-      duration: 760,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: this.tutorialRing,
+        scale: 1.18,
+        alpha: 0.35,
+        duration: 760,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
     const arrow = this.add.container(BOWL.x, BOWL.y - 122).setDepth(951);
     const arrowGraphics = this.add.graphics();
     arrowGraphics.fillStyle(COLORS.primary, 0.95);
     arrowGraphics.fillTriangle(-22, -18, 22, -18, 0, 20);
     arrow.add(arrowGraphics);
-    this.tweens.add({
-      targets: arrow,
-      y: BOWL.y - 132,
-      duration: 620,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: arrow,
+        y: BOWL.y - 132,
+        duration: 620,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
     this.tutorialArrow = arrow;
     this.tutorialBanner = banner;
@@ -1084,12 +1121,16 @@ export class HomeScene extends Phaser.Scene {
       targets.push(this.tutorialArrow);
     }
 
-    this.tweens.add({
-      targets,
-      alpha: 0,
-      duration: 240,
-      onComplete: () => targets.forEach((target) => target.destroy()),
-    });
+    if (isReducedMotion()) {
+      targets.forEach((target) => target.destroy());
+    } else {
+      this.tweens.add({
+        targets,
+        alpha: 0,
+        duration: 240,
+        onComplete: () => targets.forEach((target) => target.destroy()),
+      });
+    }
 
     this.tutorialBanner = undefined;
     this.tutorialRing = undefined;
@@ -1121,6 +1162,15 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
 
     hint.add([background, icon, label]);
+    if (isReducedMotion()) {
+      this.time.delayedCall(4400, () => {
+        hint.destroy(true);
+        if (this.movementHint === hint) {
+          this.movementHint = undefined;
+        }
+      });
+      return;
+    }
     hint.setAlpha(0);
     this.tweens.add({
       targets: hint,
@@ -1170,6 +1220,15 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     bubble.add([background, message]);
+    if (isReducedMotion()) {
+      this.time.delayedCall(3600, () => {
+        bubble.destroy(true);
+        if (this.speechBubble === bubble) {
+          this.speechBubble = undefined;
+        }
+      });
+      return;
+    }
     bubble.setAlpha(0).setScale(0.9);
     this.tweens.add({
       targets: bubble,
@@ -1194,6 +1253,9 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private spawnHearts(count: number, x: number, y: number, alpha = 1): void {
+    if (isReducedMotion()) {
+      return;
+    }
     for (let index = 0; index < count; index += 1) {
       const size = Phaser.Math.Between(24, 38);
       const heart = this.add
@@ -1218,7 +1280,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private spawnFood(): void {
-    if (!this.bowl) {
+    if (!this.bowl || isReducedMotion()) {
       return;
     }
 
@@ -1247,6 +1309,9 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private spawnSleepZ(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     const z = this.add
       .text(this.petView.x + 44, this.petView.y - 150, 'Z', {
         fontFamily: FONT_FAMILY,
@@ -1281,6 +1346,10 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(970);
 
+    if (isReducedMotion()) {
+      this.time.delayedCall(1500, () => bubble.destroy());
+      return;
+    }
     this.tweens.add({
       targets: bubble,
       y: bubble.y - 34,
@@ -1293,7 +1362,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private wobble(target?: Phaser.GameObjects.Container): void {
-    if (!target) {
+    if (!target || isReducedMotion()) {
       return;
     }
     this.tweens.add({
@@ -1310,7 +1379,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private bounce(target?: Phaser.GameObjects.Container): void {
-    if (!target) {
+    if (!target || isReducedMotion()) {
       return;
     }
     this.tweens.add({

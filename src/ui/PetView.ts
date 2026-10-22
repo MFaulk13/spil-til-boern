@@ -1,26 +1,41 @@
 import Phaser from 'phaser';
+import { getItem } from '@/game/catalog/items';
 import { getPet } from '@/game/catalog/pets';
 import type { CareNeed, PetId } from '@/game/types';
+import { isReducedMotion } from '@/systems/motion';
 import type { Mood } from '@/systems/pet';
 import { COLORS } from '@/ui/theme';
 
 const SAD_TINT = 0xc7d8e6;
+const HAPPY_TINT = 0xfff4d6;
 
 export class PetView extends Phaser.GameObjects.Container {
   private readonly content: Phaser.GameObjects.Container;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly size: number;
   private petId: PetId;
+  private accessoryId: string | null;
   private idleTween?: Phaser.Tweens.Tween;
+  private secondaryIdleTween?: Phaser.Tweens.Tween;
   private image?: Phaser.GameObjects.Image;
+  private accessoryImage?: Phaser.GameObjects.Image;
   private bubble?: Phaser.GameObjects.Container;
-  private mood: Mood = 'happy';
+  private expression?: Phaser.GameObjects.Container;
+  private mood: Mood = 'okay';
   private lowNeed: CareNeed | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, size: number, petId: PetId) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    size: number,
+    petId: PetId,
+    accessoryId: string | null = null,
+  ) {
     super(scene, x, y);
     this.size = size;
     this.petId = petId;
+    this.accessoryId = accessoryId;
 
     this.shadow = scene.add.ellipse(0, -2, size * 0.7, size * 0.14, COLORS.ink, 0.16);
     this.content = scene.add.container(0, 0);
@@ -36,6 +51,15 @@ export class PetView extends Phaser.GameObjects.Container {
     return this;
   }
 
+  setAccessory(accessoryId: string | null): this {
+    if (this.accessoryId === accessoryId) {
+      return this;
+    }
+    this.accessoryId = accessoryId;
+    this.rebuildAccessory();
+    return this;
+  }
+
   setFacingRight(right: boolean): this {
     this.content.scaleX = right ? 1 : -1;
     return this;
@@ -47,6 +71,8 @@ export class PetView extends Phaser.GameObjects.Container {
     }
     this.mood = mood;
     this.applyMoodTint();
+    this.rebuildExpression();
+    this.startIdle();
     return this;
   }
 
@@ -61,24 +87,59 @@ export class PetView extends Phaser.GameObjects.Container {
 
   startIdle(): void {
     this.idleTween?.remove();
+    this.secondaryIdleTween?.remove();
+    this.idleTween = undefined;
+    this.secondaryIdleTween = undefined;
     this.content.y = 0;
+    this.content.angle = 0;
+
+    if (isReducedMotion()) {
+      return;
+    }
+
+    const motion = getPet(this.petId).motion;
+    const profile = {
+      walk: { offset: -7, duration: 1200 },
+      hop: { offset: -12, duration: 720 },
+      swim: { offset: -5, duration: 1500 },
+      float: { offset: -10, duration: 1900 },
+    }[motion];
+    const sadFactor = this.mood === 'sad' ? 1.7 : 1;
+
     this.idleTween = this.scene.tweens.add({
       targets: this.content,
-      y: -7,
-      duration: this.mood === 'sad' ? 1900 : 1200,
+      y: profile.offset,
+      duration: profile.duration * sadFactor,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+
+    if (motion === 'swim' || motion === 'float') {
+      this.secondaryIdleTween = this.scene.tweens.add({
+        targets: this.content,
+        angle: motion === 'swim' ? 3 : -2,
+        duration: profile.duration * 1.3,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
   }
 
   stopIdle(): void {
     this.idleTween?.remove();
+    this.secondaryIdleTween?.remove();
     this.idleTween = undefined;
+    this.secondaryIdleTween = undefined;
     this.content.y = 0;
+    this.content.angle = 0;
   }
 
   playHop(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.idleTween?.pause();
     this.scene.tweens.add({
       targets: this.content,
@@ -91,6 +152,9 @@ export class PetView extends Phaser.GameObjects.Container {
   }
 
   playNod(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.idleTween?.pause();
     this.scene.tweens.add({
       targets: this.content,
@@ -107,6 +171,9 @@ export class PetView extends Phaser.GameObjects.Container {
   }
 
   playJoy(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.idleTween?.pause();
     this.scene.tweens.add({
       targets: this.content,
@@ -124,6 +191,9 @@ export class PetView extends Phaser.GameObjects.Container {
   }
 
   playSleep(): void {
+    if (isReducedMotion()) {
+      return;
+    }
     this.idleTween?.pause();
     this.scene.tweens.add({
       targets: this.content,
@@ -142,6 +212,7 @@ export class PetView extends Phaser.GameObjects.Container {
 
   private rebuild(): void {
     this.content.removeAll(true);
+    this.accessoryImage = undefined;
     const pet = getPet(this.petId);
     if (!this.scene.textures.exists(pet.assetKey)) {
       this.image = undefined;
@@ -153,7 +224,28 @@ export class PetView extends Phaser.GameObjects.Container {
       .setOrigin(0.5, 0.86)
       .setDisplaySize(this.size, this.size);
     this.content.add(this.image);
+    this.rebuildAccessory();
     this.applyMoodTint();
+  }
+
+  private rebuildAccessory(): void {
+    this.accessoryImage?.destroy();
+    this.accessoryImage = undefined;
+
+    if (!this.accessoryId) {
+      return;
+    }
+    const item = getItem(this.accessoryId);
+    if (!item || item.category !== 'accessory' || !this.scene.textures.exists(item.assetKey)) {
+      return;
+    }
+
+    const size = this.size * 0.36;
+    this.accessoryImage = this.scene.add
+      .image(0, -this.size * 0.34, item.assetKey)
+      .setDisplaySize(size, size)
+      .setAngle(-6);
+    this.content.add(this.accessoryImage);
   }
 
   private applyMoodTint(): void {
@@ -162,9 +254,76 @@ export class PetView extends Phaser.GameObjects.Container {
     }
     if (this.mood === 'sad') {
       this.image.setTint(SAD_TINT);
-    } else {
-      this.image.clearTint();
+      return;
     }
+    if (this.mood === 'happy') {
+      this.image.setTint(HAPPY_TINT);
+      return;
+    }
+    this.image.clearTint();
+  }
+
+  private rebuildExpression(): void {
+    this.expression?.destroy(true);
+    this.expression = undefined;
+
+    if (this.mood === 'okay') {
+      return;
+    }
+
+    const radius = Math.max(20, this.size * 0.15);
+    const expression = this.scene.add.container(this.size * 0.34, -this.size * 0.62);
+
+    const background = this.scene.add.graphics();
+    background.fillStyle(COLORS.panel, 0.98);
+    background.fillCircle(0, 0, radius);
+    background.lineStyle(4, this.mood === 'happy' ? COLORS.primary : COLORS.sky, 0.95);
+    background.strokeCircle(0, 0, radius);
+
+    const face = this.scene.add.graphics();
+    face.lineStyle(3, COLORS.ink, 0.85);
+    if (this.mood === 'happy') {
+      face.beginPath();
+      face.arc(-radius * 0.34, -radius * 0.08, radius * 0.2, Math.PI * 1.1, Math.PI * 1.9);
+      face.strokePath();
+      face.beginPath();
+      face.arc(radius * 0.34, -radius * 0.08, radius * 0.2, Math.PI * 1.1, Math.PI * 1.9);
+      face.strokePath();
+      face.beginPath();
+      face.arc(0, radius * 0.08, radius * 0.42, Math.PI * 0.15, Math.PI * 0.85);
+      face.strokePath();
+      face.fillStyle(COLORS.primary, 0.45);
+      face.fillCircle(-radius * 0.62, radius * 0.22, radius * 0.13);
+      face.fillCircle(radius * 0.62, radius * 0.22, radius * 0.13);
+    } else {
+      face.beginPath();
+      face.arc(-radius * 0.32, radius * 0.02, radius * 0.18, Math.PI * 1.15, Math.PI * 1.85);
+      face.strokePath();
+      face.beginPath();
+      face.arc(radius * 0.32, radius * 0.02, radius * 0.18, Math.PI * 1.15, Math.PI * 1.85);
+      face.strokePath();
+      face.beginPath();
+      face.arc(0, radius * 0.62, radius * 0.4, Math.PI * 1.2, Math.PI * 1.8);
+      face.strokePath();
+      face.fillStyle(COLORS.sky, 1);
+      face.fillEllipse(-radius * 0.42, radius * 0.28, radius * 0.16, radius * 0.26);
+    }
+
+    expression.add([background, face]);
+    this.add(expression);
+    this.expression = expression;
+
+    if (isReducedMotion()) {
+      return;
+    }
+    expression.setScale(0.6).setAlpha(0);
+    this.scene.tweens.add({
+      targets: expression,
+      scale: 1,
+      alpha: 1,
+      duration: 260,
+      ease: 'Back.easeOut',
+    });
   }
 
   private rebuildBubble(): void {
@@ -209,6 +368,9 @@ export class PetView extends Phaser.GameObjects.Container {
     this.add(bubble);
     this.bubble = bubble;
 
+    if (isReducedMotion()) {
+      return;
+    }
     bubble.setScale(0.85).setAlpha(0);
     this.scene.tweens.add({
       targets: bubble,
