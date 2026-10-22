@@ -48,30 +48,4 @@
     <path d="M330 250 H760" stroke-width="6" />
     <rect x="320" y="384" width="450" height="20" rx="8" fill="#eee2cf" stroke-width="6" />
   </g>
-
-  <g stroke="#3a2e2a" stroke-width="8" stroke-linejoin="round">
-    <rect x="38" y="150" width="160" height="350" rx="8" fill="#b98553" />
-    <rect x="54" y="166" width="128" height="318" rx="6" fill="#c9b2e8" />
-    <rect x="66" y="180" width="104" height="132" rx="6" fill="#e5dbf7" stroke-width="5" />
-    <rect x="66" y="326" width="104" height="144" rx="6" fill="#e5dbf7" stroke-width="5" />
-    <circle cx="170" cy="330" r="8" fill="#ffc94d" stroke-width="4" />
-    <path d="M26 150 H210" stroke-width="10" />
-  </g>
-
-  <g stroke="#3a2e2a" stroke-width="4" fill="none" opacity="0.75">
-    <path d="M270 44 Q330 78 390 44" />
-    <path d="M470 36 Q530 70 590 36" />
-    <path d="M680 44 Q740 78 800 44" />
-  </g>
-  <g fill="#ffd166" stroke="#3a2e2a" stroke-width="4">
-    <path d="M326 44 L331 56 L344 57 L334 66 L337 79 L326 72 L315 79 L318 66 L308 57 L321 56 Z" />
-    <path d="M526 36 L531 48 L544 49 L534 58 L537 71 L526 64 L515 71 L518 58 L508 49 L521 48 Z" />
-    <path d="M736 44 L741 56 L754 57 L744 66 L747 79 L736 72 L725 79 L728 66 L718 57 L731 56 Z" />
-  </g>
-
-  <g stroke="#3a2e2a" stroke-width="7" stroke-linejoin="round">
-    <path d="M1040 0 V86" fill="none" />
-    <path d="M998 86 Q1040 112 1082 86 L1072 126 Q1040 142 1008 126 Z" fill="#c9b2e8" />
-    <circle cx="1040" cy="124" r="12" fill="#fff6c9" stroke-width="5" />
-  </g>
 </svg>
