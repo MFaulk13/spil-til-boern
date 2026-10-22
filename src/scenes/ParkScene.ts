@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { loadMissingAssets } from '@/game/assets';
+import type { ItemDefinition } from '@/game/catalog/items';
+import { getToyPlay, ownedToys, type ToyPlayStyle } from '@/game/catalog/toys';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { clampNeed, type Needs, type WorldRect } from '@/game/types';
@@ -9,6 +11,7 @@ import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
 import { PetView } from '@/ui/PetView';
+import { ToyPanel } from '@/ui/ToyPanel';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 const BOUNDS: WorldRect = { left: 170, right: 1110, top: 470, bottom: 620 };
@@ -16,14 +19,26 @@ const MOVE_SPEED = 320;
 const PET_FOLLOW_GAP = 116;
 const PET_FOLLOW_SPEED = 6;
 const BALL_START = { x: 980, y: 584 };
-const FETCH_REWARD_HEARTS = 2;
-const FETCH_REWARD_JOY = 20;
+const TOY_BOX_POS = { x: 210, y: 540 };
+const BUBBLE_POS = { x: 700, y: 448 };
+const POND_POS = { x: 470, y: 600 };
+const FETCH_SPARKLES = 2;
+const BALL_REWARD_JOY = 20;
+const BUBBLE_COUNT = 6;
+const BUBBLE_REWARD_JOY = 4;
+const BUBBLE_ROUND_MS = 3600;
+const DUCK_REWARD_JOY = 12;
 
 export class ParkScene extends Phaser.Scene {
   private character!: CharacterView;
   private petView!: PetView;
   private ball!: Phaser.GameObjects.Container;
   private ballGlow?: Phaser.GameObjects.Arc;
+  private pondDucks: Phaser.GameObjects.Image[] = [];
+  private bubbles: Phaser.GameObjects.Container[] = [];
+  private toyPanel: ToyPanel | null = null;
+  private joyFill?: Phaser.GameObjects.Graphics;
+  private joyText?: Phaser.GameObjects.Text;
   private moveTarget: Phaser.Math.Vector2 | null = null;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -31,7 +46,11 @@ export class ParkScene extends Phaser.Scene {
   private petFacingRight = true;
   private fetching = false;
   private fetchReadyAt = 0;
-  private heartsText?: Phaser.GameObjects.Text;
+  private toyBusy = false;
+  private bubbleRoundActive = false;
+  private bubbleReadyAt = 0;
+  private ducksActive = false;
+  private duckReadyAt = 0;
 
   constructor() {
     super(SCENE_KEYS.PARK);
@@ -51,6 +70,15 @@ export class ParkScene extends Phaser.Scene {
     this.moveTarget = null;
     this.fetching = false;
     this.fetchReadyAt = 0;
+    this.toyBusy = false;
+    this.bubbleRoundActive = false;
+    this.bubbleReadyAt = 0;
+    this.ducksActive = false;
+    this.duckReadyAt = 0;
+    this.bubbles = [];
+    this.pondDucks = [];
+    this.toyPanel = null;
+
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'park');
 
     this.createTopBar();
@@ -65,13 +93,30 @@ export class ParkScene extends Phaser.Scene {
     this.petView.setDepth(601);
 
     this.ball = this.createBall();
+    this.createToyBox();
+    this.createBubbleStation();
+    this.createPond();
     this.setupInput();
     this.cameras.main.fadeIn(240, 168, 216, 240);
   }
 
   override update(_time: number, delta: number): void {
+    if (this.toyPanel) {
+      this.character.setWalking(false);
+      return;
+    }
     const seconds = Math.min(delta, 120) / 1000;
     this.updateMovement(seconds);
+  }
+
+  private get busy(): boolean {
+    return (
+      this.fetching ||
+      this.toyBusy ||
+      this.bubbleRoundActive ||
+      this.ducksActive ||
+      this.toyPanel !== null
+    );
   }
 
   private createTopBar(): void {
@@ -102,21 +147,39 @@ export class ParkScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const heartPanel = this.add.graphics();
-    heartPanel.fillStyle(COLORS.panel, 0.95);
-    heartPanel.fillRoundedRect(1046, 24, 204, 66, 24);
-    heartPanel.lineStyle(4, COLORS.accent, 0.6);
-    heartPanel.strokeRoundedRect(1046, 24, 204, 66, 24);
+    const joyPanel = this.add.graphics();
+    joyPanel.fillStyle(COLORS.panel, 0.95);
+    joyPanel.fillRoundedRect(1008, 20, 252, 74, 24);
+    joyPanel.lineStyle(4, COLORS.accent, 0.6);
+    joyPanel.strokeRoundedRect(1008, 20, 252, 74, 24);
 
-    this.add.image(1080, 57, 'icon-heart').setDisplaySize(38, 38);
-    this.heartsText = this.add
-      .text(1106, 57, String(save.hearts), {
+    this.add.image(1042, 57, 'icon-joy').setDisplaySize(38, 38);
+    this.add
+      .text(1074, 42, text.park.joyLabel, {
         fontFamily: FONT_FAMILY,
-        fontSize: '32px',
-        color: COLORS.text,
+        fontSize: '18px',
+        color: COLORS.textMuted,
         fontStyle: 'bold',
       })
       .setOrigin(0, 0.5);
+
+    this.joyText = this.add
+      .text(1236, 42, '100', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '22px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+      })
+      .setOrigin(1, 0.5);
+
+    const bar = this.add.graphics();
+    bar.fillStyle(0xffffff, 0.82);
+    bar.fillRoundedRect(1074, 66, 162, 14, 7);
+    bar.lineStyle(2, COLORS.ink, 0.16);
+    bar.strokeRoundedRect(1074, 66, 162, 14, 7);
+
+    this.joyFill = this.add.graphics();
+    this.updateJoyMeter();
   }
 
   private createHint(): void {
@@ -172,23 +235,191 @@ export class ParkScene extends Phaser.Scene {
     }
 
     container.setInteractive(new Phaser.Geom.Circle(0, -18, 54), Phaser.Geom.Circle.Contains);
-    container.on('pointerup', () => this.startFetch());
+    container.on('pointerup', () => this.startBallFetch());
     return container;
+  }
+
+  private createToyBox(): void {
+    const container = this.add.container(TOY_BOX_POS.x, TOY_BOX_POS.y).setDepth(TOY_BOX_POS.y);
+    const glow = this.add.circle(0, -34, 62, COLORS.accent, 0.22);
+    const shadow = this.add.ellipse(0, 16, 118, 28, COLORS.ink, 0.16);
+    const box = this.add.image(0, -46, 'furniture-toy-box').setDisplaySize(108, 108);
+    const label = this.add
+      .text(0, 32, text.park.toyBox, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '22px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+        backgroundColor: '#fff8ee',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5);
+    container.add([glow, shadow, box, label]);
+
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: glow,
+        scale: 1.18,
+        alpha: 0.08,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    const zone = this.add
+      .zone(TOY_BOX_POS.x, TOY_BOX_POS.y - 12, 190, 180)
+      .setDepth(TOY_BOX_POS.y + 1)
+      .setInteractive();
+    zone.on('pointerup', () => this.openToyBox());
+  }
+
+  private createBubbleStation(): void {
+    const container = this.add.container(BUBBLE_POS.x, BUBBLE_POS.y).setDepth(BUBBLE_POS.y);
+    const glow = this.add.circle(0, -14, 64, COLORS.sky, 0.28);
+    const shadow = this.add.ellipse(0, 44, 112, 24, COLORS.ink, 0.14);
+
+    const jar = this.add.graphics();
+    jar.fillStyle(COLORS.sky, 0.55);
+    jar.fillRoundedRect(-34, -18, 68, 74, 18);
+    jar.lineStyle(4, 0xffffff, 0.85);
+    jar.strokeRoundedRect(-34, -18, 68, 74, 18);
+    jar.fillStyle(COLORS.teal, 0.4);
+    jar.fillRoundedRect(-27, 12, 54, 38, 12);
+
+    const foam = [
+      this.add.circle(-16, -42, 14, 0xffffff, 0.72).setStrokeStyle(3, 0xffffff, 0.95),
+      this.add.circle(12, -54, 18, 0xffffff, 0.6).setStrokeStyle(3, 0xffffff, 0.95),
+      this.add.circle(24, -30, 11, 0xffffff, 0.72).setStrokeStyle(3, 0xffffff, 0.95),
+      this.add.circle(0, -72, 10, 0xffffff, 0.65).setStrokeStyle(3, 0xffffff, 0.95),
+    ];
+
+    const wand = this.add.graphics();
+    wand.lineStyle(5, 0xffffff, 0.95);
+    wand.beginPath();
+    wand.moveTo(34, -22);
+    wand.lineTo(60, -50);
+    wand.strokePath();
+    wand.lineStyle(5, COLORS.accent, 0.95);
+    wand.strokeCircle(66, -58, 12);
+
+    const label = this.add
+      .text(0, 58, text.park.bubbles, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '22px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+        backgroundColor: '#fff8ee',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5);
+
+    container.add([glow, shadow, jar, ...foam, wand, label]);
+
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: glow,
+        scale: 1.16,
+        alpha: 0.12,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+
+      foam.forEach((bubble, index) => {
+        this.tweens.add({
+          targets: bubble,
+          y: bubble.y - 10,
+          duration: 900 + index * 130,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      });
+    }
+
+    const zone = this.add
+      .zone(BUBBLE_POS.x, BUBBLE_POS.y - 8, 190, 190)
+      .setDepth(BUBBLE_POS.y + 1)
+      .setInteractive();
+    zone.on('pointerup', () => this.blowBubbles());
+  }
+
+  private createPond(): void {
+    const glow = this.add.ellipse(POND_POS.x, POND_POS.y - 6, 300, 104, COLORS.sky, 0.24);
+    glow.setDepth(2);
+
+    if (!isReducedMotion()) {
+      this.tweens.add({
+        targets: glow,
+        scaleX: 1.06,
+        scaleY: 1.12,
+        alpha: 0.12,
+        duration: 1400,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    this.pondDucks = [
+      this.createDuck(POND_POS.x - 54, POND_POS.y - 4),
+      this.createDuck(POND_POS.x + 58, POND_POS.y + 6),
+    ];
+
+    this.add
+      .text(POND_POS.x, POND_POS.y + 62, text.park.ducks, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '22px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+        backgroundColor: '#fff8ee',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(650);
+
+    const zone = this.add
+      .zone(POND_POS.x, POND_POS.y, 310, 140)
+      .setDepth(POND_POS.y + 10)
+      .setInteractive();
+    zone.on('pointerup', () => this.callDucks());
+  }
+
+  private createDuck(x: number, y: number): Phaser.GameObjects.Image {
+    const duck = this.add
+      .image(x, y, 'pet-duck')
+      .setDisplaySize(58, 58)
+      .setOrigin(0.5, 0.8)
+      .setDepth(y + 2);
+    duck.setFlipX(x > POND_POS.x);
+    return duck;
   }
 
   private setupInput(): void {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as
       Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key> | undefined;
-    this.input.keyboard?.on('keydown-ESC', () => this.goBack());
-    this.input.keyboard?.on('keydown-SPACE', () => this.startFetch());
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.toyPanel) {
+        this.closeToyPanel();
+        return;
+      }
+      this.goBack();
+    });
+    this.input.keyboard?.on('keydown-SPACE', () => this.startBallFetch());
+    this.input.keyboard?.on('keydown-T', () => this.openToyBox());
+    this.input.keyboard?.on('keydown-B', () => this.blowBubbles());
+    this.input.keyboard?.on('keydown-G', () => this.callDucks());
 
     const zone = this.add
       .zone(GAME_WIDTH / 2, 545, GAME_WIDTH, 150)
       .setDepth(1)
       .setInteractive();
     zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.fetching) {
+      if (this.busy) {
         return;
       }
       this.moveTarget = new Phaser.Math.Vector2(
@@ -281,10 +512,35 @@ export class ParkScene extends Phaser.Scene {
     return direction.normalize();
   }
 
-  private startFetch(): void {
-    if (this.fetching || this.time.now < this.fetchReadyAt || !save.pet) {
+  private startBallFetch(): void {
+    if (this.busy || this.time.now < this.fetchReadyAt || !save.pet) {
       return;
     }
+    this.startFetch(this.ball, this.ballGlow, BALL_REWARD_JOY, text.park.fetchReward, true);
+  }
+
+  private startToyFetch(item: ItemDefinition, joy: number): void {
+    if (this.busy || !save.pet) {
+      return;
+    }
+    const toy = this.createToySprite(item, this.petView.x, this.petView.y - 34);
+    toy.setDepth(700);
+    this.tweens.add({
+      targets: toy,
+      y: this.petView.y - 4,
+      duration: 180,
+      ease: 'Quad.easeOut',
+    });
+    this.startFetch(toy, undefined, joy, text.park.toyReward(item.label), false);
+  }
+
+  private startFetch(
+    sprite: Phaser.GameObjects.Container,
+    glow: Phaser.GameObjects.Arc | undefined,
+    rewardJoy: number,
+    message: string,
+    permanent: boolean,
+  ): void {
     this.fetching = true;
     this.moveTarget = null;
 
@@ -296,9 +552,9 @@ export class ParkScene extends Phaser.Scene {
     const targetY = Phaser.Math.Clamp(this.petView.y + 20, BOUNDS.top + 10, BOUNDS.bottom);
     const distance = Phaser.Math.Distance.Between(this.petView.x, this.petView.y, targetX, targetY);
 
-    this.ballGlow?.setVisible(false);
+    glow?.setVisible(false);
     this.tweens.add({
-      targets: this.ball,
+      targets: sprite,
       x: targetX,
       y: targetY + 18,
       duration: 340,
@@ -314,14 +570,23 @@ export class ParkScene extends Phaser.Scene {
         y: targetY,
         duration: Math.max(420, distance * 2.4),
         ease: 'Sine.easeInOut',
-        onComplete: () => this.pickUpBall(targetX, targetY),
+        onComplete: () =>
+          this.pickUpFetch(sprite, targetX, targetY, glow, rewardJoy, message, permanent),
       });
     });
   }
 
-  private pickUpBall(x: number, y: number): void {
+  private pickUpFetch(
+    sprite: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    glow: Phaser.GameObjects.Arc | undefined,
+    rewardJoy: number,
+    message: string,
+    permanent: boolean,
+  ): void {
     this.tweens.add({
-      targets: this.ball,
+      targets: sprite,
       y: y - 30,
       alpha: 0,
       duration: 200,
@@ -330,7 +595,7 @@ export class ParkScene extends Phaser.Scene {
     this.petView.playJoy();
     audio.play('play');
 
-    this.grantReward();
+    this.addJoy(rewardJoy, message);
 
     const homeX = Phaser.Math.Clamp(
       this.character.x + (this.character.x < GAME_WIDTH / 2 ? 118 : -118),
@@ -346,9 +611,13 @@ export class ParkScene extends Phaser.Scene {
       duration: 700,
       ease: 'Sine.easeInOut',
       onComplete: () => {
-        this.ball.setPosition(homeX + (this.petFacingRight ? 76 : -76), BOUNDS.bottom - 10);
-        this.ball.setAlpha(1);
-        this.ballGlow?.setVisible(true);
+        if (permanent) {
+          sprite.setPosition(homeX + (this.petFacingRight ? 76 : -76), BOUNDS.bottom - 10);
+          sprite.setAlpha(1);
+          glow?.setVisible(true);
+        } else {
+          sprite.destroy(true);
+        }
         this.petView.setDepth(Math.round(this.petView.y));
         this.fetching = false;
         this.fetchReadyAt = this.time.now + 900;
@@ -356,36 +625,281 @@ export class ParkScene extends Phaser.Scene {
     });
   }
 
-  private grantReward(): void {
-    const pet = save.pet;
-    if (!pet) {
+  private openToyBox(): void {
+    if (this.busy) {
+      return;
+    }
+    const toys = ownedToys({ inventory: save.inventory, furniture: save.furniture });
+    if (toys.length === 0) {
+      audio.play('error');
+      this.showToast(text.park.toysEmpty);
       return;
     }
 
-    const joyBefore = pet.needs.joy;
-    const needs: Needs = {
-      ...pet.needs,
-      joy: clampNeed(joyBefore + FETCH_REWARD_JOY),
-    };
-    save.updateNeeds(needs);
-
-    if (needs.joy <= joyBefore) {
-      return;
-    }
-
-    save.addHearts(FETCH_REWARD_HEARTS);
-    this.heartsText?.setText(String(save.hearts));
-    this.spawnHearts(this.petView.x, this.petView.y - 150);
-    this.showToast(text.park.reward(FETCH_REWARD_HEARTS));
+    audio.play('click');
+    this.toyPanel = new ToyPanel(
+      this,
+      toys,
+      (item) => {
+        this.closeToyPanel();
+        this.time.delayedCall(40, () => this.playWithToy(item));
+      },
+      () => this.closeToyPanel(),
+    );
   }
 
-  private spawnHearts(x: number, y: number): void {
+  private closeToyPanel(): void {
+    const panel = this.toyPanel;
+    this.toyPanel = null;
+    panel?.destroy(true);
+  }
+
+  private playWithToy(item: ItemDefinition): void {
+    if (this.busy || !save.pet) {
+      return;
+    }
+
+    const play = getToyPlay(item.id);
+    if (play.style === 'fetch') {
+      this.startToyFetch(item, play.joy);
+      return;
+    }
+
+    this.toyBusy = true;
+    const x = this.petView.x + (this.petFacingRight ? 92 : -92);
+    const y = this.petView.y - 54;
+    const toy = this.createToySprite(item, x, y);
+    toy.setDepth(700);
+    this.tweens.add({
+      targets: toy,
+      y: y - 54,
+      duration: 320,
+      ease: 'Back.easeOut',
+    });
+
+    this.playToyReaction(play.style);
+    this.addJoy(play.joy, text.park.toyReward(item.label));
+
+    this.time.delayedCall(1600, () => {
+      this.tweens.add({
+        targets: toy,
+        y: toy.y - 30,
+        alpha: 0,
+        duration: 220,
+        ease: 'Quad.easeOut',
+        onComplete: () => toy.destroy(true),
+      });
+      this.toyBusy = false;
+    });
+  }
+
+  private playToyReaction(style: ToyPlayStyle): void {
+    audio.play('play');
+    switch (style) {
+      case 'cuddle':
+        this.petView.playNod();
+        this.spawnIcons('icon-joy', 3);
+        break;
+      case 'build':
+        this.petView.playHop();
+        this.spawnIcons('icon-star', 3);
+        break;
+      case 'music':
+        this.petView.playJoy();
+        this.spawnNotes(5);
+        break;
+      case 'create':
+        this.petView.playNod();
+        this.spawnIcons('icon-paint', 3);
+        break;
+      case 'scratch':
+        this.petView.playHop();
+        this.spawnIcons('icon-joy', 4);
+        break;
+      default:
+        this.petView.playJoy();
+    }
+  }
+
+  private createToySprite(
+    item: ItemDefinition,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Container {
+    const maxSize = 96;
+    const scale = maxSize / Math.max(item.width, item.height);
+    const shadow = this.add.ellipse(0, 24, 74, 18, COLORS.ink, 0.14);
+    const glow = this.add.circle(0, 0, 48, COLORS.accent, 0.2);
+    const image = this.add
+      .image(0, 0, item.assetKey)
+      .setDisplaySize(item.width * scale, item.height * scale);
+    return this.add.container(x, y, [shadow, glow, image]);
+  }
+
+  private blowBubbles(): void {
+    if (this.busy || this.time.now < this.bubbleReadyAt) {
+      return;
+    }
+
+    this.bubbleRoundActive = true;
+    this.bubbles = [];
+    this.bubbleReadyAt = this.time.now + BUBBLE_ROUND_MS + 900;
+    audio.play('bubble');
+
+    this.petFacingRight = BUBBLE_POS.x > this.petView.x;
+    this.petView.setFacingRight(this.petFacingRight);
+
+    let popped = 0;
+    for (let index = 0; index < BUBBLE_COUNT; index += 1) {
+      const radius = Phaser.Math.Between(18, 30);
+      const startX = BUBBLE_POS.x + Phaser.Math.Between(-100, 100);
+      const startY = BUBBLE_POS.y + Phaser.Math.Between(-40, 10);
+      const bubble = this.add.container(startX, startY).setDepth(700);
+      const orb = this.add.circle(0, 0, radius, 0xd8f4ff, 0.6).setStrokeStyle(3, 0xffffff, 0.95);
+      const shine = this.add.circle(-radius * 0.3, -radius * 0.3, radius * 0.24, 0xffffff, 0.85);
+      bubble.add([orb, shine]);
+      bubble.setInteractive(new Phaser.Geom.Circle(0, 0, radius + 10), Phaser.Geom.Circle.Contains);
+      bubble.on('pointerup', () => {
+        if (!bubble.active) {
+          return;
+        }
+        const bubbleX = bubble.x;
+        const bubbleY = bubble.y;
+        bubble.destroy(true);
+        this.spawnPop(bubbleX, bubbleY, radius);
+        audio.play('pop');
+        popped += 1;
+        this.petView.playJoy();
+        this.addJoy(BUBBLE_REWARD_JOY);
+      });
+
+      this.bubbles.push(bubble);
+      this.tweens.add({
+        targets: bubble,
+        x: startX + Phaser.Math.Between(-34, 34),
+        y: startY - Phaser.Math.Between(150, 230),
+        alpha: 0.15,
+        duration: Phaser.Math.Between(2400, 3400),
+        delay: index * 90,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    this.time.delayedCall(BUBBLE_ROUND_MS, () => {
+      for (const bubble of this.bubbles) {
+        if (bubble.active) {
+          bubble.destroy(true);
+        }
+      }
+      this.bubbles = [];
+      this.bubbleRoundActive = false;
+      if (popped > 0) {
+        this.showToast(text.park.bubblesReward);
+      }
+    });
+  }
+
+  private spawnPop(x: number, y: number, radius: number): void {
     if (isReducedMotion()) {
       return;
     }
-    for (let index = 0; index < FETCH_REWARD_HEARTS; index += 1) {
+    const ring = this.add
+      .circle(x, y, radius * 0.7)
+      .setStrokeStyle(4, 0xffffff, 0.95)
+      .setDepth(850);
+    this.tweens.add({
+      targets: ring,
+      scale: 1.9,
+      alpha: 0,
+      duration: 320,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  private callDucks(): void {
+    if (this.busy || this.time.now < this.duckReadyAt) {
+      return;
+    }
+
+    this.ducksActive = true;
+    this.duckReadyAt = this.time.now + 3600;
+    audio.play('quack');
+
+    this.petFacingRight = POND_POS.x > this.petView.x;
+    this.petView.setFacingRight(this.petFacingRight);
+    this.petView.playJoy();
+
+    this.pondDucks.forEach((duck, index) => {
+      const direction = index % 2 === 0 ? 1 : -1;
+      duck.setFlipX(direction < 0);
+      this.tweens.add({
+        targets: duck,
+        x: duck.x + direction * 72,
+        y: duck.y + Phaser.Math.Between(-14, 10),
+        angle: direction * 8,
+        duration: 420,
+        yoyo: true,
+        repeat: 3,
+        ease: 'Sine.easeInOut',
+      });
+    });
+
+    this.time.delayedCall(2600, () => {
+      this.ducksActive = false;
+    });
+
+    this.addJoy(DUCK_REWARD_JOY, text.park.ducksReward);
+  }
+
+  private addJoy(amount: number, message?: string): number {
+    const pet = save.pet;
+    if (!pet) {
+      return 0;
+    }
+
+    const before = pet.needs.joy;
+    const needs: Needs = {
+      ...pet.needs,
+      joy: clampNeed(before + amount),
+    };
+    save.updateNeeds(needs);
+    this.updateJoyMeter();
+
+    const gained = needs.joy - before;
+    if (gained <= 0) {
+      if (message) {
+        this.showToast(text.park.joyFull);
+      }
+      return 0;
+    }
+
+    this.spawnJoy(this.petView.x, this.petView.y - 150);
+    if (message) {
+      this.showToast(message);
+    }
+    return gained;
+  }
+
+  private updateJoyMeter(): void {
+    const joy = save.pet?.needs.joy ?? 100;
+    this.joyText?.setText(String(Math.round(joy)));
+    if (!this.joyFill) {
+      return;
+    }
+    const width = Math.max(4, (162 * joy) / 100);
+    this.joyFill.clear();
+    this.joyFill.fillStyle(COLORS.primary, 1);
+    this.joyFill.fillRoundedRect(1074, 66, width, 14, 7);
+  }
+
+  private spawnJoy(x: number, y: number): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    for (let index = 0; index < FETCH_SPARKLES; index += 1) {
       const heart = this.add
-        .image(x + Phaser.Math.Between(-28, 28), y + Phaser.Math.Between(-8, 12), 'icon-heart')
+        .image(x + Phaser.Math.Between(-28, 28), y + Phaser.Math.Between(-8, 12), 'icon-joy')
         .setDisplaySize(Phaser.Math.Between(26, 38), Phaser.Math.Between(26, 38))
         .setDepth(900);
 
@@ -399,6 +913,66 @@ export class ParkScene extends Phaser.Scene {
         delay: index * 110,
         ease: 'Quad.easeOut',
         onComplete: () => heart.destroy(),
+      });
+    }
+  }
+
+  private spawnIcons(key: string, count: number): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    for (let index = 0; index < count; index += 1) {
+      const icon = this.add
+        .image(
+          this.petView.x + Phaser.Math.Between(-46, 46),
+          this.petView.y - 110 + Phaser.Math.Between(-16, 16),
+          key,
+        )
+        .setDisplaySize(Phaser.Math.Between(30, 42), Phaser.Math.Between(30, 42))
+        .setDepth(900);
+      this.tweens.add({
+        targets: icon,
+        y: icon.y - Phaser.Math.Between(60, 110),
+        x: icon.x + Phaser.Math.Between(-26, 26),
+        angle: Phaser.Math.Between(-18, 18),
+        alpha: 0,
+        duration: Phaser.Math.Between(800, 1200),
+        delay: index * 90,
+        ease: 'Quad.easeOut',
+        onComplete: () => icon.destroy(),
+      });
+    }
+  }
+
+  private spawnNotes(count: number): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    for (let index = 0; index < count; index += 1) {
+      const note = this.add
+        .text(
+          this.petView.x + Phaser.Math.Between(-50, 50),
+          this.petView.y - 120 + Phaser.Math.Between(-20, 20),
+          index % 2 === 0 ? '♪' : '♫',
+          {
+            fontFamily: FONT_FAMILY,
+            fontSize: `${Phaser.Math.Between(30, 44)}px`,
+            color: COLORS.textAccent,
+            fontStyle: 'bold',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(900);
+      this.tweens.add({
+        targets: note,
+        y: note.y - Phaser.Math.Between(80, 140),
+        x: note.x + Phaser.Math.Between(-34, 34),
+        angle: Phaser.Math.Between(-16, 16),
+        alpha: 0,
+        duration: Phaser.Math.Between(900, 1400),
+        delay: index * 90,
+        ease: 'Quad.easeOut',
+        onComplete: () => note.destroy(),
       });
     }
   }
@@ -432,7 +1006,7 @@ export class ParkScene extends Phaser.Scene {
   }
 
   private goBack(): void {
-    if (this.fetching) {
+    if (this.fetching || this.toyBusy) {
       return;
     }
     this.cameras.main.fadeOut(200, 168, 216, 240);

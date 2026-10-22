@@ -2,6 +2,7 @@ import {
   ACCESSORY_STYLES,
   DEFAULT_LOOK,
   EYE_STYLES,
+  GENDER_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
   MOUTH_STYLES,
@@ -13,7 +14,7 @@ import {
   type ColorOption,
   type StyleOption,
 } from '@/game/catalog/appearance';
-import type { CharacterLook } from '@/game/types';
+import { isGender, type CharacterLook } from '@/game/types';
 
 export interface CharacterLayer {
   assetKey: string;
@@ -46,6 +47,7 @@ export function normalizeLook(value: unknown): CharacterLook {
   const record =
     typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 
+  const gender = isGender(record.gender) ? record.gender : DEFAULT_LOOK.gender;
   const skin = pickColor(SKIN_TONES, record.skin, findColor(SKIN_TONES, DEFAULT_LOOK.skin));
   const hair = pickStyle(HAIR_STYLES, record.hair, findStyle(HAIR_STYLES, DEFAULT_LOOK.hair));
   const hairColor = pickColor(
@@ -73,6 +75,7 @@ export function normalizeLook(value: unknown): CharacterLook {
       : null;
 
   return {
+    gender,
     skin: skin.id,
     hair: hair.id,
     hairColor: hairColor.id,
@@ -95,6 +98,7 @@ function pick<T>(options: readonly T[], source: RandomSource): T {
 export function randomizeLook(source: RandomSource = Math): CharacterLook {
   const accessory = source.random() < 0.5 ? 'none' : pick(ACCESSORY_STYLES, source).id;
   return {
+    gender: pick(GENDER_STYLES, source).id,
     skin: pick(SKIN_TONES, source).id,
     hair: pick(HAIR_STYLES, source).id,
     hairColor: pick(HAIR_COLORS, source).id,
@@ -107,6 +111,7 @@ export function randomizeLook(source: RandomSource = Math): CharacterLook {
 }
 
 export function buildCharacterLayers(look: CharacterLook): CharacterLayer[] {
+  const gender = GENDER_STYLES.find((option) => option.id === look.gender) ?? GENDER_STYLES[0];
   const skin = findColor(SKIN_TONES, look.skin);
   const hair = findStyle(HAIR_STYLES, look.hair);
   const hairColor = findColor(HAIR_COLORS, look.hairColor);
@@ -120,7 +125,7 @@ export function buildCharacterLayers(look: CharacterLook): CharacterLayer[] {
       : ACCESSORY_STYLES.find((option) => option.id === look.accessory);
 
   const layers: CharacterLayer[] = [
-    { assetKey: 'body-base', tint: skin.color },
+    { assetKey: gender.bodyAssetKey, tint: skin.color },
     { assetKey: outfit.assetKey, tint: outfitColor.color },
     { assetKey: eyes.assetKey },
     { assetKey: mouth.assetKey },

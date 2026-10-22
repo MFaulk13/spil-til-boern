@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { loadMissingAssets } from '@/game/assets';
-import { isItemUnlocked, itemsByCategory, type ItemDefinition } from '@/game/catalog/items';
+import {
+  categoryPurchaseCount,
+  isItemUnlocked,
+  itemsByCategory,
+  type ItemDefinition,
+} from '@/game/catalog/items';
+import { PETS, type PetDefinition } from '@/game/catalog/pets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { ITEM_CATEGORIES, type ItemCategory } from '@/game/types';
@@ -11,7 +17,10 @@ import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { ItemCard } from '@/ui/ItemCard';
 import { ConfirmDialog } from '@/ui/Modal';
+import { PetCard } from '@/ui/PetCard';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
+
+type ShopTab = ItemCategory | 'pet';
 
 const CARD_WIDTH = 270;
 const CARD_HEIGHT = 145;
@@ -19,11 +28,12 @@ const COLUMN_X = [205, 495, 785, 1075] as const;
 const ROW_Y = [300, 462, 624] as const;
 
 export class ShopScene extends Phaser.Scene {
-  private category: ItemCategory = 'furniture';
+  private category: ShopTab = 'furniture';
   private heartsText?: Phaser.GameObjects.Text;
   private grid?: Phaser.GameObjects.Container;
   private dialog?: ConfirmDialog;
-  private readonly categoryButtons = new Map<ItemCategory, Button>();
+  private page = 0;
+  private readonly categoryButtons = new Map<ShopTab, Button>();
 
   constructor() {
     super(SCENE_KEYS.SHOP);
@@ -36,6 +46,7 @@ export class ShopScene extends Phaser.Scene {
   create(): void {
     this.dialog = undefined;
     this.category = 'furniture';
+    this.page = 0;
     this.categoryButtons.clear();
 
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'shop-room');
@@ -100,6 +111,7 @@ export class ShopScene extends Phaser.Scene {
     keyboard?.on('keydown-TWO', () => this.selectCategory('toy'));
     keyboard?.on('keydown-THREE', () => this.selectCategory('accessory'));
     keyboard?.on('keydown-FOUR', () => this.selectCategory('treat'));
+    keyboard?.on('keydown-FIVE', () => this.selectCategory('pet'));
     keyboard?.on('keydown-ESC', () => {
       if (!this.dialog) {
         this.goBack();
@@ -108,21 +120,23 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private createCategoryTabs(): void {
-    const labels: Record<ItemCategory, string> = {
+    const labels: Record<ShopTab, string> = {
       furniture: text.shop.categories.furniture,
       toy: text.shop.categories.toy,
       accessory: text.shop.categories.accessory,
       treat: text.shop.categories.treat,
+      pet: text.shop.categories.pet,
     };
+    const tabs: readonly ShopTab[] = [...ITEM_CATEGORIES, 'pet'];
 
-    ITEM_CATEGORIES.forEach((category, index) => {
+    tabs.forEach((category, index) => {
       const button = new Button(this, {
-        x: 286 + index * 236,
+        x: 230 + index * 205,
         y: 174,
         label: labels[category],
-        width: 220,
+        width: 190,
         height: 68,
-        fontSize: 25,
+        fontSize: 23,
         color: category === this.category ? COLORS.primary : COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => this.selectCategory(category),
@@ -131,11 +145,12 @@ export class ShopScene extends Phaser.Scene {
     });
   }
 
-  private selectCategory(category: ItemCategory): void {
+  private selectCategory(category: ShopTab): void {
     if (this.dialog || this.category === category) {
       return;
     }
     this.category = category;
+    this.page = 0;
     for (const [id, button] of this.categoryButtons) {
       button.setColor(id === category ? COLORS.primary : COLORS.panelLight);
     }
@@ -147,11 +162,23 @@ export class ShopScene extends Phaser.Scene {
     this.grid = this.add.container(0, 0);
     this.updateHearts();
 
-    const items = itemsByCategory(this.category);
-    items.forEach((item, index) => {
+    if (this.category === 'pet') {
+      this.renderPetCards();
+      return;
+    }
+
+    const category = this.category;
+    const items = itemsByCategory(category);
+    const purchased = categoryPurchaseCount(save.purchases, category);
+    const pageSize = COLUMN_X.length * ROW_Y.length;
+    const pages = Math.max(1, Math.ceil(items.length / pageSize));
+    this.page = Math.min(this.page, pages - 1);
+    const visible = items.slice(this.page * pageSize, (this.page + 1) * pageSize);
+
+    visible.forEach((item, index) => {
       const column = index % COLUMN_X.length;
       const row = Math.floor(index / COLUMN_X.length);
-      const unlocked = isItemUnlocked(item, save.earnedHearts);
+      const unlocked = isItemUnlocked(item, purchased);
       const card = new ItemCard(this, {
         x: COLUMN_X[column],
         y: ROW_Y[row] ?? ROW_Y[ROW_Y.length - 1],
@@ -161,11 +188,87 @@ export class ShopScene extends Phaser.Scene {
         owned: itemCount(save, item.id),
         affordable: canAfford(save, item.price),
         locked: !unlocked,
-        lockLabel: unlocked ? undefined : text.shop.locked(item.unlockAt),
+        lockLabel: unlocked
+          ? undefined
+          : text.shop.locked(item.requiredPurchases - purchased, text.shop.categories[category]),
         onClick: (selected) => this.askToBuy(selected),
       });
       this.grid?.add(card);
     });
+
+    this.renderPageControls(pages);
+  }
+
+  private renderPetCards(): void {
+    const pageSize = COLUMN_X.length * ROW_Y.length;
+    const pages = Math.max(1, Math.ceil(PETS.length / pageSize));
+    this.page = Math.min(this.page, pages - 1);
+    const visible = PETS.slice(this.page * pageSize, (this.page + 1) * pageSize);
+
+    visible.forEach((pet, index) => {
+      const column = index % COLUMN_X.length;
+      const row = Math.floor(index / COLUMN_X.length);
+      const owned = save.pets.filter((entry) => entry.id === pet.id).length;
+      const card = new PetCard(this, {
+        x: COLUMN_X[column],
+        y: ROW_Y[row] ?? ROW_Y[ROW_Y.length - 1],
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        pet,
+        price: pet.adoptionPrice,
+        owned,
+        affordable: canAfford(save, pet.adoptionPrice),
+        onClick: (selected) => this.askToBuyEgg(selected),
+      });
+      this.grid?.add(card);
+    });
+
+    this.renderPageControls(pages);
+  }
+
+  private renderPageControls(pages: number): void {
+    if (pages <= 1 || !this.grid) {
+      return;
+    }
+
+    const previous = new Button(this, {
+      x: 42,
+      y: 462,
+      label: '<',
+      width: 60,
+      height: 64,
+      fontSize: 26,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => {
+        this.page = (this.page + pages - 1) % pages;
+        this.refreshGrid();
+      },
+    });
+    const next = new Button(this, {
+      x: GAME_WIDTH - 42,
+      y: 462,
+      label: '>',
+      width: 60,
+      height: 64,
+      fontSize: 26,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => {
+        this.page = (this.page + 1) % pages;
+        this.refreshGrid();
+      },
+    });
+    const label = this.add
+      .text(GAME_WIDTH / 2, 212, `${this.page + 1} / ${pages}`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '18px',
+        color: COLORS.textMuted,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+
+    this.grid.add([previous, next, label]);
   }
 
   private askToBuy(item: ItemDefinition): void {
@@ -173,9 +276,12 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
 
-    if (!isItemUnlocked(item, save.earnedHearts)) {
+    const purchased = categoryPurchaseCount(save.purchases, item.category);
+    if (!isItemUnlocked(item, purchased)) {
       audio.play('error');
-      this.showToast(text.shop.locked(item.unlockAt));
+      this.showToast(
+        text.shop.locked(item.requiredPurchases - purchased, text.shop.categories[item.category]),
+      );
       return;
     }
 
@@ -219,6 +325,40 @@ export class ShopScene extends Phaser.Scene {
         ? text.shop.boughtAndWorn(item.label)
         : text.shop.bought(item.label),
     );
+  }
+
+  private askToBuyEgg(pet: PetDefinition): void {
+    if (this.dialog) {
+      return;
+    }
+
+    if (!canAfford(save, pet.adoptionPrice)) {
+      audio.play('error');
+      this.showToast(text.shop.notEnough(pet.adoptionPrice - save.hearts));
+      return;
+    }
+
+    this.dialog = new ConfirmDialog(this, {
+      title: text.shop.adoptTitle(pet.label),
+      body: text.shop.adoptBody(pet.adoptionPrice),
+      confirmLabel: text.shop.adopt,
+      cancelLabel: text.shop.cancel,
+      onConfirm: () => {
+        this.dialog = undefined;
+        this.buyEgg(pet);
+      },
+      onCancel: () => {
+        this.dialog = undefined;
+      },
+    });
+  }
+
+  private buyEgg(pet: PetDefinition): void {
+    this.scene.start(SCENE_KEYS.HATCH, {
+      petId: pet.id,
+      price: pet.adoptionPrice,
+      origin: 'shop',
+    });
   }
 
   private updateHearts(): void {

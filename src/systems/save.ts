@@ -1,10 +1,12 @@
 import { getItem } from '@/game/catalog/items';
+import { createPetUid } from '@/game/catalog/pets';
 import {
   clampNeed,
   isPetId,
   isRoomId,
   type CharacterLook,
   type Needs,
+  type PetId,
   type PetState,
   type PlacedFurniture,
   type SaveData,
@@ -19,7 +21,7 @@ export interface StorageLike {
 
 const STORAGE_KEY = 'gotar:save';
 const LEGACY_STORAGE_KEY = 'spil:save';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 const PROBE_KEY = 'gotar:probe';
 const STARTING_HEARTS = 20;
 
@@ -28,9 +30,11 @@ export function createDefaultSave(): SaveData {
     version: SAVE_VERSION,
     settings: { sound: true, reduceMotion: false },
     player: null,
-    pet: null,
+    pets: [],
+    activePetId: null,
     wallet: { hearts: STARTING_HEARTS, earnedHearts: 0 },
     inventory: {},
+    purchases: {},
     home: { furniture: [] },
     flags: { tutorialDone: false },
   };
@@ -67,6 +71,7 @@ function parseLook(value: unknown): CharacterLook | null {
   const outfit = readText(value.outfit);
   const outfitColor = readText(value.outfitColor);
   const accessory = value.accessory === null ? null : readText(value.accessory);
+  const gender = readText(value.gender);
 
   if (
     !skin ||
@@ -81,7 +86,17 @@ function parseLook(value: unknown): CharacterLook | null {
     return null;
   }
 
-  return normalizeLook({ skin, hair, hairColor, eyes, mouth, outfit, outfitColor, accessory });
+  return normalizeLook({
+    gender: gender ?? undefined,
+    skin,
+    hair,
+    hairColor,
+    eyes,
+    mouth,
+    outfit,
+    outfitColor,
+    accessory,
+  });
 }
 
 function parseNeeds(value: unknown): Needs {
@@ -93,8 +108,22 @@ function parseNeeds(value: unknown): Needs {
   };
 }
 
-function parsePet(value: unknown): PetState | null {
-  if (!isRecord(value) || !isPetId(value.id)) {
+function normalizePetId(value: unknown): PetId | null {
+  if (value === 'puppy') {
+    return 'dog';
+  }
+  if (value === 'kitten') {
+    return 'cat';
+  }
+  return isPetId(value) ? value : null;
+}
+
+function parsePet(value: unknown, fallbackUid?: string): PetState | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = normalizePetId(value.id);
+  if (!id) {
     return null;
   }
 
@@ -105,15 +134,37 @@ function parsePet(value: unknown): PetState | null {
 
   const accessoryId = readText(value.accessory);
   const accessory = accessoryId ? getItem(accessoryId) : undefined;
+  const uid = readText(value.uid) ?? fallbackUid ?? createPetUid();
 
   return {
-    id: value.id,
+    uid,
+    id,
     name,
     needs: parseNeeds(value.needs),
     bond: readCount(value.bond, 0),
     hatchedAt: readCount(value.hatchedAt, 0),
     accessory: accessory?.category === 'accessory' ? accessoryId : null,
   };
+}
+
+function parsePets(value: unknown, legacyPet: unknown): PetState[] {
+  const rawPets = Array.isArray(value) ? value : legacyPet !== undefined ? [legacyPet] : [];
+  const pets: PetState[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of rawPets) {
+    const pet = parsePet(entry);
+    if (!pet) {
+      continue;
+    }
+    if (seen.has(pet.uid)) {
+      pet.uid = createPetUid();
+    }
+    seen.add(pet.uid);
+    pets.push(pet);
+  }
+
+  return pets;
 }
 
 function parseInventory(value: unknown): Record<string, number> {
@@ -135,6 +186,33 @@ function parseInventory(value: unknown): Record<string, number> {
     }
   }
   return inventory;
+}
+
+function parsePurchases(
+  value: unknown,
+  legacyCounts: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const purchases: Record<string, number> = {};
+
+  if (!isRecord(value)) {
+    for (const [itemId, count] of Object.entries(legacyCounts)) {
+      if (getItem(itemId) && count > 0) {
+        purchases[itemId] = Math.floor(count);
+      }
+    }
+    return purchases;
+  }
+
+  for (const [itemId, count] of Object.entries(value)) {
+    if (!getItem(itemId)) {
+      continue;
+    }
+    const parsed = readCount(count, 0);
+    if (parsed > 0) {
+      purchases[itemId] = parsed;
+    }
+  }
+  return purchases;
 }
 
 function parseFurniture(value: unknown): PlacedFurniture[] {
@@ -198,7 +276,7 @@ export function parseSave(raw: string | null): SaveData {
   }
 
   const settings = readSettings(parsed, fallback.settings);
-  if (parsed.version !== SAVE_VERSION) {
+  if (parsed.version !== 2 && parsed.version !== SAVE_VERSION) {
     return { ...fallback, settings };
   }
 
@@ -207,18 +285,31 @@ export function parseSave(raw: string | null): SaveData {
   const wallet = isRecord(parsed.wallet) ? parsed.wallet : {};
   const home = isRecord(parsed.home) ? parsed.home : {};
   const flags = isRecord(parsed.flags) ? parsed.flags : {};
+  const pets = parsePets(parsed.pets, parsed.pet);
+  const requestedActive = readText(parsed.activePetId);
+  const activePetId = pets.some((pet) => pet.uid === requestedActive)
+    ? requestedActive
+    : (pets[0]?.uid ?? null);
+  const inventory = parseInventory(parsed.inventory);
+  const furniture = parseFurniture(home.furniture);
+  const legacyPurchaseCounts: Record<string, number> = { ...inventory };
+  for (const placed of furniture) {
+    legacyPurchaseCounts[placed.itemId] = (legacyPurchaseCounts[placed.itemId] ?? 0) + 1;
+  }
 
   return {
     version: SAVE_VERSION,
     settings,
     player: look ? { look } : null,
-    pet: parsePet(parsed.pet),
+    pets,
+    activePetId,
     wallet: {
       hearts: readCount(wallet.hearts, STARTING_HEARTS),
       earnedHearts: readCount(wallet.earnedHearts, 0),
     },
-    inventory: parseInventory(parsed.inventory),
-    home: { furniture: parseFurniture(home.furniture) },
+    inventory,
+    purchases: parsePurchases(parsed.purchases, legacyPurchaseCounts),
+    home: { furniture },
     flags: {
       tutorialDone: readBoolean(flags.tutorialDone, fallback.flags.tutorialDone),
     },
@@ -274,8 +365,16 @@ export class SaveManager {
     return this.data.player?.look ?? null;
   }
 
+  get pets(): readonly PetState[] {
+    return this.data.pets;
+  }
+
+  get activePetId(): string | null {
+    return this.data.activePetId;
+  }
+
   get pet(): PetState | null {
-    return this.data.pet;
+    return this.data.pets.find((pet) => pet.uid === this.data.activePetId) ?? null;
   }
 
   get hearts(): number {
@@ -288,6 +387,10 @@ export class SaveManager {
 
   get inventory(): Readonly<Record<string, number>> {
     return this.data.inventory;
+  }
+
+  get purchases(): Readonly<Record<string, number>> {
+    return this.data.purchases;
   }
 
   get furniture(): readonly PlacedFurniture[] {
@@ -320,23 +423,53 @@ export class SaveManager {
   }
 
   setPet(pet: PetState): void {
-    this.data.pet = { ...pet, needs: { ...pet.needs } };
+    const index = this.data.pets.findIndex((entry) => entry.uid === pet.uid);
+    const copy = { ...pet, needs: { ...pet.needs } };
+    if (index >= 0) {
+      this.data.pets[index] = copy;
+    } else {
+      this.data.pets.push(copy);
+    }
+    this.data.activePetId = pet.uid;
     this.persist();
   }
 
+  addPet(pet: PetState, makeActive = true): void {
+    if (!this.data.pets.some((entry) => entry.uid === pet.uid)) {
+      this.data.pets.push({ ...pet, needs: { ...pet.needs } });
+    }
+    if (makeActive || !this.pet) {
+      this.data.activePetId = pet.uid;
+    }
+    this.persist();
+  }
+
+  setActivePet(uid: string): boolean {
+    if (!this.data.pets.some((pet) => pet.uid === uid)) {
+      return false;
+    }
+    if (this.data.activePetId !== uid) {
+      this.data.activePetId = uid;
+      this.persist();
+    }
+    return true;
+  }
+
   setPetAccessory(accessory: string | null): void {
-    if (!this.data.pet) {
+    const pet = this.pet;
+    if (!pet) {
       return;
     }
-    this.data.pet.accessory = accessory;
+    pet.accessory = accessory;
     this.persist();
   }
 
   updateNeeds(needs: Needs): void {
-    if (!this.data.pet) {
+    const pet = this.pet;
+    if (!pet) {
       return;
     }
-    this.data.pet.needs = {
+    pet.needs = {
       hunger: clampNeed(needs.hunger),
       joy: clampNeed(needs.joy),
       energy: clampNeed(needs.energy),
@@ -369,6 +502,14 @@ export class SaveManager {
       return;
     }
     this.data.inventory[itemId] = (this.data.inventory[itemId] ?? 0) + Math.floor(count);
+    this.persist();
+  }
+
+  recordPurchase(itemId: string): void {
+    if (!getItem(itemId)) {
+      return;
+    }
+    this.data.purchases[itemId] = (this.data.purchases[itemId] ?? 0) + 1;
     this.persist();
   }
 

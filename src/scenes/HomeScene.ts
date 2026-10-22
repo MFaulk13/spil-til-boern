@@ -8,7 +8,6 @@ import type { Needs, PetId, RoomId } from '@/game/types';
 import { normalizeLook } from '@/systems/appearance';
 import { isReducedMotion } from '@/systems/motion';
 import { audio } from '@/systems/audio';
-import { rewardCare } from '@/systems/economy';
 import {
   GAME_EVENTS,
   gameEvents,
@@ -30,6 +29,7 @@ import { canPlace, clampCenter, createFurnitureUid, footprintOf } from '@/system
 import { save } from '@/systems/save';
 import { CharacterView } from '@/ui/CharacterView';
 import { InventoryPanel, type InventoryEntry } from '@/ui/InventoryPanel';
+import { PetPanel } from '@/ui/PetPanel';
 import { PetView } from '@/ui/PetView';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -84,6 +84,7 @@ export class HomeScene extends Phaser.Scene {
   private floorZone?: Phaser.GameObjects.Zone;
   private movementHint?: Phaser.GameObjects.Container;
   private speechBubble?: Phaser.GameObjects.Container;
+  private petPanel?: PetPanel;
   private lastMood: Mood = 'okay';
 
   constructor() {
@@ -107,6 +108,7 @@ export class HomeScene extends Phaser.Scene {
     this.placementMode = false;
     this.selectedUid = null;
     this.selectedItemId = null;
+    this.petPanel = undefined;
     this.room = getRoom('living');
     this.furnitureViews.clear();
 
@@ -189,6 +191,8 @@ export class HomeScene extends Phaser.Scene {
     gameEvents.on(GAME_EVENTS.MENU_REQUESTED, this.returnToMenu, this);
     gameEvents.on(GAME_EVENTS.TOWN_REQUESTED, this.goToTown, this);
     gameEvents.on(GAME_EVENTS.DECOR_REQUESTED, this.togglePlacement, this);
+    gameEvents.on(GAME_EVENTS.WARDROBE_REQUESTED, this.goToWardrobe, this);
+    gameEvents.on(GAME_EVENTS.PETS_REQUESTED, this.openPetPanel, this);
     gameEvents.on(GAME_EVENTS.HUD_READY, this.emitHudState, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
   }
@@ -211,6 +215,8 @@ export class HomeScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-FIVE', () => this.handleCare('treat'));
     this.input.keyboard?.on('keydown-T', () => this.goToTown());
     this.input.keyboard?.on('keydown-E', () => this.togglePlacement());
+    this.input.keyboard?.on('keydown-C', () => this.goToWardrobe());
+    this.input.keyboard?.on('keydown-K', () => this.openPetPanel());
     this.input.on('pointermove', this.updateGhost, this);
   }
 
@@ -352,11 +358,6 @@ export class HomeScene extends Phaser.Scene {
     this.needs = result.needs;
     save.updateNeeds(this.needs);
 
-    const awardedHearts = rewardCare(save, result.hearts);
-    if (awardedHearts > 0) {
-      this.spawnHearts(awardedHearts, this.petView.x, this.petView.y - 150);
-    }
-
     this.playCareAnimation(action);
     this.refreshPetMood();
     this.emitHudState();
@@ -375,7 +376,7 @@ export class HomeScene extends Phaser.Scene {
 
     const feedback: CareFeedback = {
       action,
-      hearts: awardedHearts,
+      hearts: 0,
       need: CARE_EFFECTS[action].need,
     };
     gameEvents.emit(GAME_EVENTS.CARE_FEEDBACK, feedback);
@@ -386,7 +387,7 @@ export class HomeScene extends Phaser.Scene {
       case 'feed':
       case 'treat':
         this.petView.playNod();
-        if (this.room.id === 'living') {
+        if (this.bowl?.visible) {
           this.wobble(this.bowl);
           this.spawnFood();
         }
@@ -395,7 +396,7 @@ export class HomeScene extends Phaser.Scene {
         break;
       case 'play':
         this.petView.playJoy();
-        if (this.room.id === 'living') {
+        if (this.ball?.visible) {
           this.bounce(this.ball);
         }
         audio.play('play');
@@ -403,7 +404,7 @@ export class HomeScene extends Phaser.Scene {
         break;
       case 'pet':
         this.petView.playHop();
-        if (this.room.id === 'living') {
+        if (this.cushion?.visible) {
           this.wobble(this.cushion);
         }
         audio.play('love');
@@ -411,7 +412,7 @@ export class HomeScene extends Phaser.Scene {
         break;
       case 'sleep':
         this.petView.playSleep();
-        if (this.room.id === 'living') {
+        if (this.cushion?.visible) {
           this.wobble(this.cushion);
         }
         this.spawnSleepZ();
@@ -454,6 +455,7 @@ export class HomeScene extends Phaser.Scene {
       hearts: save.hearts,
       mood: moodOf(this.needs),
       treatCount: treatCount(save),
+      petCount: save.pets.length,
     };
     gameEvents.emit(GAME_EVENTS.HUD_STATE, state);
   }
@@ -479,6 +481,81 @@ export class HomeScene extends Phaser.Scene {
     this.scene.start(SCENE_KEYS.TOWN);
   }
 
+  private goToWardrobe(): void {
+    if (this.placementMode) {
+      this.exitPlacement();
+    }
+    this.persistNeeds();
+    this.scene.stop(SCENE_KEYS.HUD);
+    this.scene.start(SCENE_KEYS.CHARACTER, { mode: 'edit' });
+  }
+
+  private openPetPanel(): void {
+    if (this.petPanel) {
+      return;
+    }
+    if (this.placementMode) {
+      this.exitPlacement();
+    }
+    this.persistNeeds();
+    this.scene.stop(SCENE_KEYS.HUD);
+    this.petPanel = new PetPanel(
+      this,
+      save.pets,
+      save.activePetId,
+      (uid) => this.switchPet(uid),
+      () => this.closePetPanel(),
+      () => this.goToPetShop(),
+    );
+  }
+
+  private closePetPanel(relaunchHud = true): void {
+    this.petPanel?.destroy(true);
+    this.petPanel = undefined;
+    if (relaunchHud && !this.scene.isActive(SCENE_KEYS.HUD)) {
+      this.scene.launch(SCENE_KEYS.HUD);
+    }
+  }
+
+  private switchPet(uid: string): void {
+    if (uid === save.activePetId) {
+      return;
+    }
+    this.persistNeeds();
+    if (!save.setActivePet(uid)) {
+      return;
+    }
+    const pet = save.pet;
+    if (!pet) {
+      return;
+    }
+
+    this.petId = pet.id;
+    this.petName = pet.name;
+    this.needs = { ...pet.needs };
+    this.lastMood = moodOf(this.needs);
+    this.petView.setPet(pet.id);
+    this.petView.setAccessory(pet.accessory);
+    this.petView.setMood(this.lastMood);
+    this.petView.startIdle();
+    this.petFacingRight = true;
+    this.petView.setFacingRight(true);
+    this.refreshPetMood();
+    this.closePetPanel();
+    this.emitHudState();
+    this.speechBubble?.destroy(true);
+    this.speechBubble = undefined;
+    this.createSpeechBubble(pet.name);
+    audio.play('pop');
+  }
+
+  private goToPetShop(): void {
+    this.closePetPanel(false);
+    this.persistNeeds();
+    this.scene.stop(SCENE_KEYS.HUD);
+    this.scene.start(SCENE_KEYS.SHOP);
+  }
+
   private handleShutdown(): void {
     this.persistNeeds();
     this.moodHeartsTimer?.remove();
@@ -488,7 +565,11 @@ export class HomeScene extends Phaser.Scene {
     gameEvents.off(GAME_EVENTS.MENU_REQUESTED, this.returnToMenu, this);
     gameEvents.off(GAME_EVENTS.TOWN_REQUESTED, this.goToTown, this);
     gameEvents.off(GAME_EVENTS.DECOR_REQUESTED, this.togglePlacement, this);
+    gameEvents.off(GAME_EVENTS.WARDROBE_REQUESTED, this.goToWardrobe, this);
+    gameEvents.off(GAME_EVENTS.PETS_REQUESTED, this.openPetPanel, this);
     gameEvents.off(GAME_EVENTS.HUD_READY, this.emitHudState, this);
+    this.petPanel?.destroy(true);
+    this.petPanel = undefined;
     this.input.off('pointermove', this.updateGhost, this);
     if (this.scene.isActive(SCENE_KEYS.HUD)) {
       this.scene.stop(SCENE_KEYS.HUD);
@@ -500,9 +581,9 @@ export class HomeScene extends Phaser.Scene {
       const container = this.add.container(door.x, door.y).setDepth(80);
       const background = this.add.graphics();
       background.fillStyle(COLORS.panel, 0.95);
-      background.fillRoundedRect(-98, -30, 196, 60, 22);
+      background.fillRoundedRect(-98, -34, 196, 68, 22);
       background.lineStyle(4, COLORS.teal, 0.9);
-      background.strokeRoundedRect(-98, -30, 196, 60, 22);
+      background.strokeRoundedRect(-98, -34, 196, 68, 22);
 
       const icon = this.add.graphics();
       icon.fillStyle(COLORS.teal, 1);
@@ -513,18 +594,18 @@ export class HomeScene extends Phaser.Scene {
       icon.strokeRoundedRect(-88, -18, 30, 40, 7);
 
       const label = this.add
-        .text(10, 0, door.label, {
+        .text(14, 0, door.label, {
           fontFamily: FONT_FAMILY,
-          fontSize: '22px',
+          fontSize: '20px',
           color: COLORS.text,
           fontStyle: 'bold',
         })
         .setOrigin(0.5);
 
       container.add([background, icon, label]);
-      container.setSize(196, 60);
+      container.setSize(196, 68);
       container.setInteractive(
-        new Phaser.Geom.Rectangle(0, 0, 196, 60),
+        new Phaser.Geom.Rectangle(0, 0, 196, 68),
         Phaser.Geom.Rectangle.Contains,
       );
       container.on('pointerup', () => this.switchRoom(door.target));
@@ -572,12 +653,12 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private updateCareObjects(): void {
-    const visible = this.room.id === 'living';
-    this.bowl?.setVisible(visible);
-    this.ball?.setVisible(visible);
-    this.cushion?.setVisible(visible);
-    this.tutorialRing?.setVisible(visible);
-    this.tutorialArrow?.setVisible(visible);
+    const inLiving = this.room.id === 'living';
+    this.bowl?.setVisible(inLiving || this.room.id === 'kitchen');
+    this.ball?.setVisible(inLiving || this.room.id === 'playroom');
+    this.cushion?.setVisible(inLiving || this.room.id === 'bedroom' || this.room.id === 'playroom');
+    this.tutorialRing?.setVisible(inLiving);
+    this.tutorialArrow?.setVisible(inLiving);
   }
 
   private createFurnitureViews(): void {

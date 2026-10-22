@@ -3,6 +3,7 @@ import {
   ACCESSORY_STYLES,
   APPEARANCE_CATEGORIES,
   EYE_STYLES,
+  GENDER_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
   MOUTH_STYLES,
@@ -25,9 +26,10 @@ import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 const PREVIEW = { x: 330, groundY: 640, size: 330 } as const;
 const PANEL = { x: 52, y: 132, width: 556, height: 536 } as const;
-const TAB_X = [700, 790, 880, 970, 1060, 1150] as const;
+const TAB_X = [716, 792, 868, 944, 1020, 1096, 1172] as const;
 const OPTION_X = [760, 890, 1020, 1150] as const;
 const OPTION_Y = [326, 476] as const;
+const OPTION_PAGE_SIZE = OPTION_X.length * OPTION_Y.length;
 const TILE_SIZE = 116;
 
 interface StyleTileOptions {
@@ -44,6 +46,8 @@ interface StyleTileOptions {
 export class CharacterScene extends Phaser.Scene {
   private look: CharacterLook = normalizeLook(undefined);
   private category: AppearanceCategory = 'skin';
+  private optionPage = 0;
+  private editMode = false;
   private preview!: CharacterView;
   private optionLayer!: Phaser.GameObjects.Container;
   private readonly tabs = new Map<AppearanceCategory, Button>();
@@ -52,10 +56,15 @@ export class CharacterScene extends Phaser.Scene {
     super(SCENE_KEYS.CHARACTER);
   }
 
+  init(data: { mode?: unknown }): void {
+    this.editMode = data.mode === 'edit';
+  }
+
   create(): void {
     drawBackdrop(this);
     this.look = normalizeLook(save.playerLook ?? undefined);
-    this.category = 'skin';
+    this.category = 'gender';
+    this.optionPage = 0;
     save.setPlayerLook(this.look);
 
     this.createPreview();
@@ -68,10 +77,10 @@ export class CharacterScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ENTER', () => this.goNext());
     this.input.keyboard?.on('keydown-R', () => this.randomize());
-    this.input.keyboard?.on('keydown-ESC', () => this.scene.start(SCENE_KEYS.MENU));
+    this.input.keyboard?.on('keydown-ESC', () => this.goBack());
     APPEARANCE_CATEGORIES.forEach((category, index) => {
       this.input.keyboard?.on(
-        `keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][index]}`,
+        `keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'][index]}`,
         () => this.setCategory(category),
       );
     });
@@ -79,7 +88,7 @@ export class CharacterScene extends Phaser.Scene {
 
   private createTitle(): void {
     this.add
-      .text(64, 52, text.appearance.title, {
+      .text(64, 52, this.editMode ? text.appearance.titleEdit : text.appearance.title, {
         fontFamily: FONT_FAMILY,
         fontSize: '56px',
         color: COLORS.text,
@@ -88,7 +97,7 @@ export class CharacterScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
 
     this.add
-      .text(66, 102, text.appearance.subtitle, {
+      .text(66, 102, this.editMode ? text.appearance.subtitleEdit : text.appearance.subtitle, {
         fontFamily: FONT_FAMILY,
         fontSize: '26px',
         color: COLORS.textMuted,
@@ -104,7 +113,7 @@ export class CharacterScene extends Phaser.Scene {
       fontSize: 24,
       color: COLORS.panelLight,
       textColor: COLORS.text,
-      onClick: () => this.scene.start(SCENE_KEYS.MENU),
+      onClick: () => this.goBack(),
     });
   }
 
@@ -135,11 +144,11 @@ export class CharacterScene extends Phaser.Scene {
     APPEARANCE_CATEGORIES.forEach((category, index) => {
       const button = new Button(this, {
         x: TAB_X[index],
-        y: 178,
+        y: 172,
         label: text.appearance.categories[category],
-        width: 82,
+        width: 70,
         height: 64,
-        fontSize: 17,
+        fontSize: 16,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => this.setCategory(category),
@@ -160,12 +169,20 @@ export class CharacterScene extends Phaser.Scene {
       return;
     }
     this.category = category;
+    this.optionPage = 0;
     this.refreshTabs();
     this.renderOptions();
   }
 
   private renderOptions(): void {
     this.optionLayer.removeAll(true);
+
+    if (this.category === 'gender') {
+      this.renderStyleOptions(GENDER_STYLES, this.look.gender, (option) =>
+        this.updateLook({ gender: option.id }),
+      );
+      return;
+    }
 
     if (this.category === 'skin') {
       this.renderColorOptions(SKIN_TONES, this.look.skin, (option) => {
@@ -219,14 +236,19 @@ export class CharacterScene extends Phaser.Scene {
     );
   }
 
-  private renderStyleOptions(
-    options: readonly StyleOption[],
+  private renderStyleOptions<T extends StyleOption>(
+    options: readonly T[],
     selectedId: string,
-    onSelect: (option: StyleOption) => void,
+    onSelect: (option: T) => void,
   ): void {
-    options.forEach((option, index) => {
+    const pages = Math.max(1, Math.ceil(options.length / OPTION_PAGE_SIZE));
+    this.optionPage = Math.min(this.optionPage, pages - 1);
+    const start = this.optionPage * OPTION_PAGE_SIZE;
+    const visible = options.slice(start, start + OPTION_PAGE_SIZE);
+
+    visible.forEach((option, index) => {
       const x = OPTION_X[index % OPTION_X.length];
-      const y = OPTION_Y[Math.floor(index / 3)];
+      const y = OPTION_Y[Math.floor(index / OPTION_X.length)];
       const isNone = option.id === 'none';
       let tint: number | undefined;
       if (this.category === 'hair') {
@@ -247,6 +269,53 @@ export class CharacterScene extends Phaser.Scene {
       });
       this.optionLayer.add(tile);
     });
+
+    if (pages > 1) {
+      this.renderPageControls(pages);
+    }
+  }
+
+  private renderPageControls(pages: number): void {
+    const previous = new Button(this, {
+      x: 760,
+      y: 236,
+      label: '<',
+      width: 92,
+      height: 56,
+      fontSize: 24,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => {
+        this.optionPage = (this.optionPage + pages - 1) % pages;
+        this.renderOptions();
+      },
+    });
+
+    const next = new Button(this, {
+      x: 1150,
+      y: 236,
+      label: '>',
+      width: 92,
+      height: 56,
+      fontSize: 24,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => {
+        this.optionPage = (this.optionPage + 1) % pages;
+        this.renderOptions();
+      },
+    });
+
+    const label = this.add
+      .text(955, 236, `${this.optionPage + 1} / ${pages}`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '20px',
+        color: COLORS.textMuted,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+
+    this.optionLayer.add([previous, next, label]);
   }
 
   private createStyleTile(options: StyleTileOptions): Phaser.GameObjects.Container {
@@ -317,7 +386,7 @@ export class CharacterScene extends Phaser.Scene {
   ): void {
     options.forEach((option, index) => {
       const x = OPTION_X[index % OPTION_X.length];
-      const y = OPTION_Y[Math.floor(index / 3)];
+      const y = OPTION_Y[Math.floor(index / OPTION_X.length)];
       this.optionLayer.add(this.createColorTile(x, y, option, option.id === selectedId, onSelect));
     });
   }
@@ -383,7 +452,11 @@ export class CharacterScene extends Phaser.Scene {
     );
 
     colors.forEach((color, index) => {
-      const x = 770 + index * 62;
+      const startX = 748;
+      const endX = 1212;
+      const spacing =
+        colors.length > 1 ? Math.min(62, (endX - startX) / Math.max(1, colors.length - 1)) : 0;
+      const x = startX + index * spacing;
       const selected = color.id === selectedId;
       const circle = this.add
         .circle(x, 608, 25, color.color)
@@ -427,7 +500,7 @@ export class CharacterScene extends Phaser.Scene {
     new Button(this, {
       x: 1110,
       y: 680,
-      label: text.next,
+      label: this.editMode ? text.appearance.save : text.next,
       width: 250,
       height: 68,
       fontSize: 28,
@@ -438,6 +511,14 @@ export class CharacterScene extends Phaser.Scene {
 
   private goNext(): void {
     save.setPlayerLook(this.preview.currentLook);
+    if (this.editMode) {
+      this.scene.start(SCENE_KEYS.HOME);
+      return;
+    }
     this.scene.start(SCENE_KEYS.PET_SELECT);
+  }
+
+  private goBack(): void {
+    this.scene.start(this.editMode ? SCENE_KEYS.HOME : SCENE_KEYS.MENU);
   }
 }

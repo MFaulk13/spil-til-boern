@@ -9,6 +9,8 @@ import { MenuScene } from '@/scenes/MenuScene';
 import { ParkScene } from '@/scenes/ParkScene';
 import { PetSelectScene } from '@/scenes/PetSelectScene';
 import { PreloadScene } from '@/scenes/PreloadScene';
+import { QuizScene } from '@/scenes/QuizScene';
+import { SchoolScene } from '@/scenes/SchoolScene';
 import { ShopScene } from '@/scenes/ShopScene';
 import { TownScene } from '@/scenes/TownScene';
 import { COLORS } from '@/ui/theme';
@@ -42,6 +44,8 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
       TownScene,
       ShopScene,
       ParkScene,
+      SchoolScene,
+      QuizScene,
       HudScene,
     ],
   };

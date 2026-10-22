@@ -94,9 +94,9 @@ export class CharacterView extends Phaser.GameObjects.Container {
   private rebuild(): void {
     this.content.removeAll(true);
 
-    for (const layer of buildCharacterLayers(this.look)) {
+    buildCharacterLayers(this.look).forEach((layer, index) => {
       if (!this.scene.textures.exists(layer.assetKey)) {
-        continue;
+        return;
       }
       const image = this.scene.add
         .image(0, 0, layer.assetKey)
@@ -106,6 +106,26 @@ export class CharacterView extends Phaser.GameObjects.Container {
         image.setTint(layer.tint);
       }
       this.content.add(image);
+
+      if (index === 0) {
+        this.addCheeks();
+      }
+    });
+  }
+
+  private addCheeks(): void {
+    const cheekWidth = this.size * 0.12;
+    const cheekHeight = this.size * 0.06;
+    for (const direction of [-1, 1]) {
+      const cheek = this.scene.add.ellipse(
+        direction * this.size * 0.14,
+        -this.size * 0.51,
+        cheekWidth,
+        cheekHeight,
+        0xff9aa6,
+        0.32,
+      );
+      this.content.add(cheek);
     }
   }
 }

@@ -3,6 +3,7 @@ import { ASSET_MANIFEST, CORE_ASSETS, LAZY_ASSETS, LAZY_SCENE_ASSET_KEYS } from 
 import {
   ACCESSORY_STYLES,
   EYE_STYLES,
+  GENDER_STYLES,
   HAIR_COLORS,
   HAIR_STYLES,
   MOUTH_STYLES,
@@ -10,10 +11,16 @@ import {
   OUTFIT_STYLES,
   SKIN_TONES,
 } from '@/game/catalog/appearance';
-import { ITEMS, getItem, isItemUnlocked, treatCount } from '@/game/catalog/items';
-import { PETS, createPetState, getPet } from '@/game/catalog/pets';
+import {
+  categoryPurchaseCount,
+  ITEMS,
+  getItem,
+  isItemUnlocked,
+  treatCount,
+} from '@/game/catalog/items';
+import { PETS, createPetState, getPet, pickNewPetName } from '@/game/catalog/pets';
 import { ROOMS } from '@/game/catalog/rooms';
-import { createFullNeeds, ITEM_CATEGORIES, PET_IDS, type RoomId } from '@/game/types';
+import { createFullNeeds, ITEM_CATEGORIES, PET_IDS, ROOM_IDS, type RoomId } from '@/game/types';
 
 const manifestKeys = new Set(ASSET_MANIFEST.map((asset) => asset.key));
 
@@ -39,6 +46,7 @@ describe('asset manifest', () => {
 
   it('contains every asset used by the catalogs', () => {
     const styleKeys = [
+      ...GENDER_STYLES,
       ...HAIR_STYLES,
       ...EYE_STYLES,
       ...MOUTH_STYLES,
@@ -50,6 +58,13 @@ describe('asset manifest', () => {
 
     for (const key of styleKeys) {
       expect(manifestKeys.has(key), `missing character asset: ${key}`).toBe(true);
+    }
+
+    for (const gender of GENDER_STYLES) {
+      expect(
+        manifestKeys.has(gender.bodyAssetKey),
+        `missing body asset: ${gender.bodyAssetKey}`,
+      ).toBe(true);
     }
 
     expect(manifestKeys.has('body-base')).toBe(true);
@@ -87,16 +102,25 @@ describe('item catalog', () => {
     }
   });
 
-  it('gates bonus items behind earned hearts', () => {
+  it('gates bonus items behind purchases in the same category', () => {
     for (const item of ITEMS) {
-      expect(item.unlockAt).toBeGreaterThanOrEqual(0);
-      expect(item.unlockAt).toBeLessThanOrEqual(80);
-      expect(isItemUnlocked(item, item.unlockAt)).toBe(true);
-      expect(isItemUnlocked(item, item.unlockAt - 1)).toBe(false);
+      expect(item.requiredPurchases).toBeGreaterThanOrEqual(0);
+      expect(item.requiredPurchases).toBeLessThanOrEqual(12);
+      expect(isItemUnlocked(item, item.requiredPurchases)).toBe(true);
+      expect(isItemUnlocked(item, item.requiredPurchases - 1)).toBe(false);
     }
 
-    expect(ITEMS.some((item) => item.unlockAt > 0)).toBe(true);
+    expect(ITEMS.some((item) => item.requiredPurchases > 0)).toBe(true);
     expect(ITEMS.some((item) => !isItemUnlocked(item, 0))).toBe(true);
+  });
+
+  it('counts purchases per category', () => {
+    const purchases = { sofa: 2, lamp: 1, ball: 3, cookie: 1 };
+
+    expect(categoryPurchaseCount(purchases, 'furniture')).toBe(3);
+    expect(categoryPurchaseCount(purchases, 'toy')).toBe(3);
+    expect(categoryPurchaseCount(purchases, 'treat')).toBe(1);
+    expect(categoryPurchaseCount(purchases, 'accessory')).toBe(0);
   });
 
   it('counts treats in the inventory', () => {
@@ -128,10 +152,11 @@ describe('item catalog', () => {
 });
 
 describe('room catalog', () => {
-  it('has a valid living room and bedroom with doors', () => {
+  it('has a valid room for every RoomId with reachable doors', () => {
     const rooms = Object.values(ROOMS);
-    expect(rooms).toHaveLength(2);
+    expect(rooms).toHaveLength(ROOM_IDS.length);
     expectUnique(rooms.map((room) => room.id));
+    expect(rooms.map((room) => room.id)).toEqual([...ROOM_IDS]);
 
     for (const room of rooms) {
       expect(room.label.length).toBeGreaterThan(0);
@@ -143,15 +168,20 @@ describe('room catalog', () => {
       expect(room.spawn.x).toBeLessThanOrEqual(room.bounds.right);
       expect(room.spawn.y).toBeGreaterThanOrEqual(room.bounds.top);
       expect(room.spawn.y).toBeLessThanOrEqual(room.bounds.bottom);
+      for (const door of room.doors) {
+        expect(door.label.length).toBeGreaterThan(0);
+        expect(door.y + 34).toBeLessThanOrEqual(room.placementArea.top);
+      }
     }
 
     const targets = new Set<RoomId>(rooms.flatMap((room) => room.doors.map((door) => door.target)));
-    expect(targets).toEqual(new Set<RoomId>(['living', 'bedroom']));
+    expect(targets).toEqual(new Set<RoomId>(ROOM_IDS));
   });
 });
 
 describe('appearance catalog', () => {
   it('has unique ids in every category', () => {
+    expectUnique(GENDER_STYLES.map((option) => option.id));
     expectUnique(SKIN_TONES.map((option) => option.id));
     expectUnique(HAIR_STYLES.map((option) => option.id));
     expectUnique(HAIR_COLORS.map((option) => option.id));
@@ -171,6 +201,7 @@ describe('appearance catalog', () => {
     }
 
     const styles = [
+      ...GENDER_STYLES,
       ...HAIR_STYLES,
       ...EYE_STYLES,
       ...MOUTH_STYLES,
@@ -184,10 +215,22 @@ describe('appearance catalog', () => {
 });
 
 describe('pet catalog', () => {
-  it('contains all nine pets with unique ids', () => {
-    expect(PETS).toHaveLength(9);
+  it('contains every pet with unique ids', () => {
+    expect(PETS).toHaveLength(18);
     expectUnique(PETS.map((pet) => pet.id));
     expect(PETS.map((pet) => pet.id)).toEqual([...PET_IDS]);
+  });
+
+  it('no longer offers puppy or kitten', () => {
+    const ids: readonly string[] = PETS.map((pet) => pet.id);
+    expect(ids).not.toContain('puppy');
+    expect(ids).not.toContain('kitten');
+  });
+
+  it('offers a pet pig and a chicken', () => {
+    const ids: readonly string[] = PETS.map((pet) => pet.id);
+    expect(ids).toContain('pig');
+    expect(ids).toContain('chicken');
   });
 
   it('has labels and name suggestions for every pet', () => {
@@ -196,15 +239,29 @@ describe('pet catalog', () => {
       expect(pet.names.length).toBeGreaterThanOrEqual(6);
       expect(pet.names.every((name) => name.trim().length > 0)).toBe(true);
       expect(['walk', 'hop', 'swim', 'float']).toContain(pet.motion);
+      expect(pet.adoptionPrice).toBeGreaterThanOrEqual(20);
+      expect(pet.adoptionPrice).toBeLessThanOrEqual(80);
       expect(getPet(pet.id)).toBe(pet);
     }
   });
 
-  it('creates a pet with full needs and the current timestamp', () => {
-    const state = createPetState('rabbit', 'Hoppe', 1234);
+  it('creates a pet with full needs, a uid and the current timestamp', () => {
+    const state = createPetState('rabbit', 'Hoppe', 1234, 'pet-hoppe');
 
-    expect(state).toMatchObject({ id: 'rabbit', name: 'Hoppe', hatchedAt: 1234 });
+    expect(state).toMatchObject({
+      uid: 'pet-hoppe',
+      id: 'rabbit',
+      name: 'Hoppe',
+      hatchedAt: 1234,
+    });
     expect(state.needs).toEqual(createFullNeeds());
     expect(state.accessory).toBeNull();
+  });
+
+  it('suggests an unused name when adopting the same species twice', () => {
+    const first = createPetState('dog', 'Baloo', 1, 'pet-1');
+    const name = pickNewPetName('dog', [first.name]);
+    expect(name).not.toBe(first.name);
+    expect(getPet('dog').names).toContain(name);
   });
 });

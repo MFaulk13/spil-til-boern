@@ -13,6 +13,7 @@ const CARD_WIDTH = 320;
 const CARD_HEIGHT = 132;
 const COLUMN_X = [270, 640, 1010] as const;
 const ROW_Y = [252, 394, 536] as const;
+const PAGE_SIZE = COLUMN_X.length * ROW_Y.length;
 
 interface EggCard {
   pet: PetDefinition;
@@ -25,6 +26,11 @@ interface EggCard {
 export class PetSelectScene extends Phaser.Scene {
   private selected: PetId | null = null;
   private selectionIndex = -1;
+  private page = 0;
+  private cardLayer?: Phaser.GameObjects.Container;
+  private previousButton?: Button;
+  private nextButton?: Button;
+  private pageText?: Phaser.GameObjects.Text;
   private readonly cards = new Map<PetId, EggCard>();
   private confirmButton?: Button;
 
@@ -35,7 +41,12 @@ export class PetSelectScene extends Phaser.Scene {
   create(): void {
     this.selected = null;
     this.selectionIndex = -1;
+    this.page = 0;
     this.cards.clear();
+    this.cardLayer = undefined;
+    this.previousButton = undefined;
+    this.nextButton = undefined;
+    this.pageText = undefined;
     drawBackdrop(this);
 
     this.add
@@ -67,11 +78,7 @@ export class PetSelectScene extends Phaser.Scene {
       onClick: () => this.scene.start(SCENE_KEYS.CHARACTER),
     });
 
-    PETS.forEach((pet, index) => {
-      const x = COLUMN_X[index % 3];
-      const y = ROW_Y[Math.floor(index / 3)];
-      this.createEggCard(pet, x, y);
-    });
+    this.renderPage();
 
     this.confirmButton = new Button(this, {
       x: GAME_WIDTH / 2,
@@ -107,6 +114,90 @@ export class PetSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start(SCENE_KEYS.CHARACTER));
   }
 
+  private pagePets(): readonly PetDefinition[] {
+    const start = this.page * PAGE_SIZE;
+    return PETS.slice(start, start + PAGE_SIZE);
+  }
+
+  private pageCount(): number {
+    return Math.max(1, Math.ceil(PETS.length / PAGE_SIZE));
+  }
+
+  private renderPage(): void {
+    this.cardLayer?.destroy(true);
+    this.cards.clear();
+    this.cardLayer = this.add.container(0, 0);
+
+    this.pagePets().forEach((pet, index) => {
+      const x = COLUMN_X[index % COLUMN_X.length];
+      const y = ROW_Y[Math.floor(index / COLUMN_X.length)];
+      this.createEggCard(pet, x, y);
+    });
+
+    this.updatePageControls();
+
+    if (this.selected) {
+      const card = this.cards.get(this.selected);
+      if (card) {
+        this.drawCard(card, true);
+        card.container.setScale(1.04);
+      }
+    }
+  }
+
+  private updatePageControls(): void {
+    this.previousButton?.destroy();
+    this.nextButton?.destroy();
+    this.pageText?.destroy();
+    this.previousButton = undefined;
+    this.nextButton = undefined;
+    this.pageText = undefined;
+
+    const pages = this.pageCount();
+    if (pages <= 1) {
+      return;
+    }
+
+    this.previousButton = new Button(this, {
+      x: 420,
+      y: 672,
+      label: '<',
+      width: 64,
+      height: 64,
+      fontSize: 26,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => this.changePage(-1),
+    });
+    this.nextButton = new Button(this, {
+      x: 860,
+      y: 672,
+      label: '>',
+      width: 64,
+      height: 64,
+      fontSize: 26,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => this.changePage(1),
+    });
+    this.pageText = this.add
+      .text(GAME_WIDTH - 118, 120, `${this.page + 1} / ${pages}`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '20px',
+        color: COLORS.textMuted,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+  }
+
+  private changePage(delta: number): void {
+    const pages = this.pageCount();
+    this.page = (this.page + delta + pages) % pages;
+    this.selectionIndex = -1;
+    audio.play('pop');
+    this.renderPage();
+  }
+
   private createEggCard(pet: PetDefinition, x: number, y: number): void {
     const container = this.add.container(x, y);
     container.setSize(CARD_WIDTH, CARD_HEIGHT);
@@ -133,6 +224,7 @@ export class PetSelectScene extends Phaser.Scene {
 
     container.add([background, egg, name, check]);
     container.on('pointerdown', () => this.select(pet.id));
+    this.cardLayer?.add(container);
 
     const card: EggCard = { pet, container, background, check, egg };
     this.cards.set(pet.id, card);
@@ -140,14 +232,19 @@ export class PetSelectScene extends Phaser.Scene {
   }
 
   private moveSelection(deltaColumn: number, deltaRow: number): void {
+    const pets = this.pagePets();
     const current = this.selectionIndex >= 0 ? this.selectionIndex : 0;
-    const column = Phaser.Math.Clamp((current % 3) + deltaColumn, 0, 2);
-    const row = Phaser.Math.Clamp(Math.floor(current / 3) + deltaRow, 0, 2);
-    this.selectIndex(row * 3 + column);
+    const maxRow = Math.max(0, Math.ceil(pets.length / COLUMN_X.length) - 1);
+    const column = Phaser.Math.Clamp((current % COLUMN_X.length) + deltaColumn, 0, 2);
+    const row = Phaser.Math.Clamp(Math.floor(current / COLUMN_X.length) + deltaRow, 0, maxRow);
+    const index = row * COLUMN_X.length + column;
+    if (index < pets.length) {
+      this.selectIndex(index);
+    }
   }
 
   private selectIndex(index: number): void {
-    const pet = PETS[index];
+    const pet = this.pagePets()[index];
     if (!pet) {
       return;
     }
@@ -157,7 +254,7 @@ export class PetSelectScene extends Phaser.Scene {
 
   private select(petId: PetId): void {
     this.selected = petId;
-    this.selectionIndex = PETS.findIndex((pet) => pet.id === petId);
+    this.selectionIndex = this.pagePets().findIndex((pet) => pet.id === petId);
     audio.play('pop');
     for (const card of this.cards.values()) {
       const selected = card.pet.id === petId;

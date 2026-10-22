@@ -1,5 +1,5 @@
 import { MIN_TOUCH_TARGET } from '@/game/constants';
-import type { CareNeed } from '@/game/types';
+import type { CareNeed, ItemCategory } from '@/game/types';
 import type { CareAction, Mood } from '@/systems/pet';
 
 export const COLORS = {
@@ -41,6 +41,13 @@ export const CARE_COLORS: Record<CareAction, number> = {
   play: 0xffc94d,
   pet: 0xc9b2e8,
   sleep: 0x62c9b8,
+  treat: 0xff9f70,
+};
+
+export const CATEGORY_COLORS: Record<ItemCategory, number> = {
+  furniture: 0x62c9b8,
+  toy: 0xffc94d,
+  accessory: 0xc9b2e8,
   treat: 0xff9f70,
 };
 

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <g stroke="#4a3a32" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M342 344 Q420 328 414 272 Q410 248 392 252 Q378 256 384 276 Q390 306 330 324 Z" fill="#8c5a35" />
+    <path d="M170 344 Q92 328 98 272 Q102 248 120 252 Q134 256 128 276 Q122 306 182 324 Z" fill="#8c5a35" />
     <ellipse cx="256" cy="356" rx="108" ry="82" fill="#a9713f" />
     <rect x="190" y="402" width="40" height="58" rx="18" fill="#a9713f" />
     <rect x="282" y="402" width="40" height="58" rx="18" fill="#a9713f" />

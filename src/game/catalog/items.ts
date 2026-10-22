@@ -12,7 +12,7 @@ export interface ItemDefinition {
   gridWidth: number;
   gridHeight: number;
   placeable: boolean;
-  unlockAt: number;
+  requiredPurchases: number;
 }
 
 const CELL = 64;
@@ -25,7 +25,7 @@ function placeable(
   assetKey: string,
   gridWidth: number,
   gridHeight: number,
-  unlockAt = 0,
+  requiredPurchases = 0,
 ): ItemDefinition {
   return {
     id,
@@ -38,7 +38,7 @@ function placeable(
     gridWidth,
     gridHeight,
     placeable: true,
-    unlockAt,
+    requiredPurchases,
   };
 }
 
@@ -48,7 +48,7 @@ function collectible(
   label: string,
   price: number,
   assetKey: string,
-  unlockAt = 0,
+  requiredPurchases = 0,
 ): ItemDefinition {
   return {
     id,
@@ -61,7 +61,7 @@ function collectible(
     gridWidth: 0,
     gridHeight: 0,
     placeable: false,
-    unlockAt,
+    requiredPurchases,
   };
 }
 
@@ -75,23 +75,80 @@ export const ITEMS: readonly ItemDefinition[] = [
   placeable('lamp', 'furniture', text.items.lamp, 10, 'furniture-lamp', 1, 2),
   placeable('plant', 'furniture', text.items.plant, 12, 'furniture-plant', 1, 2),
   placeable('wardrobe', 'furniture', text.items.wardrobe, 40, 'furniture-wardrobe', 2, 3),
-  placeable('cushion', 'furniture', text.items.cushion, 16, 'furniture-cushion', 2, 1, 20),
-  placeable('mirror', 'furniture', text.items.mirror, 24, 'furniture-mirror', 1, 2, 30),
-  placeable('tv', 'furniture', text.items.tv, 55, 'furniture-tv', 3, 2, 40),
+  placeable('cushion', 'furniture', text.items.cushion, 16, 'furniture-cushion', 2, 1, 2),
+  placeable('mirror', 'furniture', text.items.mirror, 24, 'furniture-mirror', 1, 2, 3),
+  placeable('tv', 'furniture', text.items.tv, 55, 'furniture-tv', 3, 2, 7),
+  placeable('desk', 'furniture', text.items.desk, 32, 'furniture-desk', 3, 2),
+  placeable('bookshelf', 'furniture', text.items.bookshelf, 38, 'furniture-bookshelf', 2, 3, 3),
+  placeable('stool', 'furniture', text.items.stool, 10, 'furniture-stool', 1, 1),
+  placeable('beanbag', 'furniture', text.items.beanbag, 24, 'furniture-beanbag', 2, 2, 3),
+  placeable('toy-box', 'furniture', text.items.toyBox, 28, 'furniture-toy-box', 2, 2, 5),
+  placeable('fish-tank', 'furniture', text.items.fishTank, 60, 'furniture-fish-tank', 3, 2, 9),
+  placeable('cactus', 'furniture', text.items.cactus, 14, 'furniture-cactus', 1, 2),
+  placeable('side-table', 'furniture', text.items.sideTable, 18, 'furniture-side-table', 2, 1, 2),
+  placeable('armchair', 'furniture', text.items.armchair, 42, 'furniture-armchair', 2, 2),
+  placeable(
+    'coffee-table',
+    'furniture',
+    text.items.coffeeTable,
+    26,
+    'furniture-coffee-table',
+    3,
+    2,
+  ),
+  placeable('cabinet', 'furniture', text.items.cabinet, 44, 'furniture-cabinet', 2, 2, 7),
+  placeable('round-rug', 'furniture', text.items.roundRug, 18, 'furniture-round-rug', 2, 2),
+  placeable('floor-lamp', 'furniture', text.items.floorLamp, 20, 'furniture-floor-lamp', 1, 2),
+  placeable('ottoman', 'furniture', text.items.ottoman, 16, 'furniture-ottoman', 2, 1),
+  placeable('vanity', 'furniture', text.items.vanity, 48, 'furniture-vanity', 2, 2, 9),
+  placeable('fireplace', 'furniture', text.items.fireplace, 80, 'furniture-fireplace', 3, 2, 12),
+  placeable('globe', 'furniture', text.items.globe, 22, 'furniture-globe', 1, 2, 3),
+  placeable('guitar', 'furniture', text.items.guitar, 30, 'furniture-guitar', 1, 2, 5),
+  placeable('pet-bed', 'furniture', text.items.petBed, 20, 'furniture-pet-bed', 2, 1, 2),
+  placeable(
+    'rocking-chair',
+    'furniture',
+    text.items.rockingChair,
+    50,
+    'furniture-rocking-chair',
+    2,
+    2,
+    12,
+  ),
   placeable('ball', 'toy', text.items.ball, 8, 'toy-ball', 1, 1),
   placeable('teddy', 'toy', text.items.teddy, 14, 'toy-teddy', 1, 2),
   placeable('scratching-post', 'toy', text.items.scratchingPost, 26, 'toy-scratching-post', 2, 3),
-  placeable('frisbee', 'toy', text.items.frisbee, 9, 'toy-frisbee', 1, 1, 15),
-  placeable('blocks', 'toy', text.items.blocks, 20, 'toy-blocks', 2, 1, 25),
+  placeable('frisbee', 'toy', text.items.frisbee, 9, 'toy-frisbee', 1, 1, 2),
+  placeable('blocks', 'toy', text.items.blocks, 20, 'toy-blocks', 2, 1, 3),
+  placeable('train-set', 'toy', text.items.trainSet, 22, 'toy-train-set', 2, 1, 6),
+  placeable('puzzle', 'toy', text.items.puzzle, 12, 'toy-puzzle', 1, 1),
+  placeable('yarn-ball', 'toy', text.items.yarnBall, 8, 'toy-yarn-ball', 1, 1),
+  placeable('dollhouse', 'toy', text.items.dollhouse, 50, 'toy-dollhouse', 2, 2, 6),
+  placeable('kite', 'toy', text.items.kite, 10, 'toy-kite', 1, 2, 2),
+  placeable('robot', 'toy', text.items.robot, 24, 'toy-robot', 1, 2, 3),
+  placeable('skateboard', 'toy', text.items.skateboard, 18, 'toy-skateboard', 2, 1),
+  placeable('bunny', 'toy', text.items.bunny, 15, 'toy-bunny', 1, 2),
+  placeable('crayons', 'toy', text.items.crayons, 14, 'toy-crayons', 2, 1),
+  placeable('xylophone', 'toy', text.items.xylophone, 20, 'toy-xylophone', 2, 1, 4),
+  placeable('car', 'toy', text.items.car, 10, 'toy-car', 1, 1),
+  placeable('tea-set', 'toy', text.items.teaSet, 18, 'toy-tea-set', 2, 1, 4),
   collectible('bow', 'accessory', text.items.bow, 10, 'accessory-bow-item'),
   collectible('crown', 'accessory', text.items.crown, 25, 'accessory-crown'),
   collectible('bandana', 'accessory', text.items.bandana, 15, 'accessory-bandana'),
-  collectible('hat', 'accessory', text.items.hat, 18, 'accessory-hat', 35),
-  collectible('scarf', 'accessory', text.items.scarf, 22, 'accessory-scarf', 50),
+  collectible('hat', 'accessory', text.items.hat, 18, 'accessory-hat', 2),
+  collectible('scarf', 'accessory', text.items.scarf, 22, 'accessory-scarf', 4),
   collectible('cookie', 'treat', text.items.cookie, 5, 'treat-cookie'),
   collectible('carrot', 'treat', text.items.carrot, 6, 'treat-carrot'),
   collectible('apple', 'treat', text.items.apple, 6, 'treat-apple'),
-  collectible('fish-treat', 'treat', text.items.fishTreat, 7, 'treat-fish', 60),
+  collectible('fish-treat', 'treat', text.items.fishTreat, 7, 'treat-fish', 6),
+  collectible('banana', 'treat', text.items.banana, 5, 'treat-banana'),
+  collectible('strawberry', 'treat', text.items.strawberry, 6, 'treat-strawberry'),
+  collectible('cheese', 'treat', text.items.cheese, 6, 'treat-cheese'),
+  collectible('bone', 'treat', text.items.bone, 7, 'treat-bone'),
+  collectible('cupcake', 'treat', text.items.cupcake, 8, 'treat-cupcake', 2),
+  collectible('watermelon', 'treat', text.items.watermelon, 7, 'treat-watermelon'),
+  collectible('broccoli', 'treat', text.items.broccoli, 5, 'treat-broccoli'),
+  collectible('donut', 'treat', text.items.donut, 8, 'treat-donut', 4),
 ];
 
 const ITEMS_BY_ID = new Map(ITEMS.map((item) => [item.id, item]));
@@ -104,8 +161,18 @@ export function itemsByCategory(category: ItemCategory): readonly ItemDefinition
   return ITEMS.filter((item) => item.category === category);
 }
 
-export function isItemUnlocked(item: ItemDefinition, earnedHearts: number): boolean {
-  return Number.isFinite(earnedHearts) && earnedHearts >= item.unlockAt;
+export function categoryPurchaseCount(
+  purchases: Readonly<Record<string, number>>,
+  category: ItemCategory,
+): number {
+  return itemsByCategory(category).reduce(
+    (total, item) => total + Math.max(0, Math.floor(purchases[item.id] ?? 0)),
+    0,
+  );
+}
+
+export function isItemUnlocked(item: ItemDefinition, categoryPurchases: number): boolean {
+  return Number.isFinite(categoryPurchases) && categoryPurchases >= item.requiredPurchases;
 }
 
 export function firstTreatId(store: {

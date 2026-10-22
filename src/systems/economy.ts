@@ -5,6 +5,7 @@ export interface EconomyStore {
   spendHearts(count: number): boolean;
   addItem(itemId: string, count?: number): void;
   consumeItem(itemId: string): boolean;
+  recordPurchase?(itemId: string): void;
 }
 
 export type PurchaseFailure = 'invalid-item' | 'invalid-price' | 'insufficient-hearts';
@@ -39,18 +40,10 @@ export function purchase(store: EconomyStore, itemId: string, price: number): Pu
   }
 
   store.addItem(itemId);
+  store.recordPurchase?.(itemId);
   return { ok: true, hearts: store.hearts };
 }
 
 export function useItem(store: EconomyStore, itemId: string): boolean {
   return store.consumeItem(itemId);
-}
-
-export function rewardCare(store: EconomyStore, hearts: number): number {
-  if (!Number.isFinite(hearts) || hearts <= 0) {
-    return 0;
-  }
-  const amount = Math.floor(hearts);
-  store.addHearts(amount);
-  return amount;
 }

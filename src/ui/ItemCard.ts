@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { ItemDefinition } from '@/game/catalog/items';
 import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
-import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { CATEGORY_COLORS, COLORS, FONT_FAMILY } from '@/ui/theme';
 
 export interface ItemCardOptions {
   x: number;
@@ -30,6 +30,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
   private affordable: boolean;
   private selected: boolean;
   private readonly locked: boolean;
+  private readonly categoryColor: number;
 
   constructor(scene: Phaser.Scene, options: ItemCardOptions) {
     super(scene, options.x, options.y);
@@ -39,11 +40,19 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.affordable = options.affordable ?? true;
     this.selected = options.selected ?? false;
     this.locked = options.locked ?? false;
+    this.categoryColor = CATEGORY_COLORS[options.item.category];
 
     this.background = scene.add.graphics();
 
     const compact = options.compact ?? false;
     const iconArea = Math.min(this.cardWidth * 0.56, this.cardHeight * 0.48);
+    const iconPlate = scene.add.circle(
+      0,
+      -this.cardHeight * 0.16,
+      Math.min(this.cardWidth, this.cardHeight) * 0.29,
+      this.categoryColor,
+      0.16,
+    );
     const icon = scene.add
       .image(0, -this.cardHeight * 0.16, options.item.assetKey)
       .setDisplaySize(
@@ -112,7 +121,16 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.ownedBadge.setVisible((options.owned ?? 0) > 0);
     this.ownedText.setText(String(options.owned ?? 0));
 
-    this.add([this.background, icon, label, heart, this.priceText, lockText, this.ownedBadge]);
+    this.add([
+      this.background,
+      iconPlate,
+      icon,
+      label,
+      heart,
+      this.priceText,
+      lockText,
+      this.ownedBadge,
+    ]);
     this.drawBackground();
 
     this.setSize(this.cardWidth, this.cardHeight);
@@ -161,6 +179,8 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.background.fillRoundedRect(left, top, this.cardWidth, this.cardHeight, radius);
     this.background.lineStyle(this.selected ? 7 : 4, stroke, this.selected ? 1 : 0.55);
     this.background.strokeRoundedRect(left, top, this.cardWidth, this.cardHeight, radius);
+    this.background.fillStyle(this.categoryColor, 0.9);
+    this.background.fillRoundedRect(left + 16, top + 10, 34, 6, 3);
 
     if (this.locked) {
       this.background.fillStyle(COLORS.ink, 0.16);

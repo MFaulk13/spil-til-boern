@@ -10,6 +10,8 @@ export const GAME_EVENTS = {
   MENU_REQUESTED: 'gotar:menu-requested',
   TOWN_REQUESTED: 'gotar:town-requested',
   DECOR_REQUESTED: 'gotar:decor-requested',
+  WARDROBE_REQUESTED: 'gotar:wardrobe-requested',
+  PETS_REQUESTED: 'gotar:pets-requested',
   PLACEMENT_STATE: 'gotar:placement-state',
 } as const;
 
@@ -24,6 +26,7 @@ export interface HudState {
   hearts: number;
   mood: Mood;
   treatCount: number;
+  petCount: number;
 }
 
 export interface CareFeedback {

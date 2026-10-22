@@ -23,7 +23,7 @@ const LOCATIONS: readonly Location[] = [
     label: text.town.home,
     travel: text.town.travelHome,
     color: COLORS.primary,
-    x: 250,
+    x: 200,
     y: 556,
   },
   {
@@ -32,7 +32,7 @@ const LOCATIONS: readonly Location[] = [
     label: text.town.shop,
     travel: text.town.travelShop,
     color: COLORS.teal,
-    x: 640,
+    x: 500,
     y: 556,
   },
   {
@@ -41,7 +41,16 @@ const LOCATIONS: readonly Location[] = [
     label: text.town.park,
     travel: text.town.travelPark,
     color: COLORS.accent,
-    x: 1030,
+    x: 800,
+    y: 556,
+  },
+  {
+    scene: SCENE_KEYS.SCHOOL,
+    icon: 'icon-book',
+    label: text.town.school,
+    travel: text.town.travelSchool,
+    color: COLORS.lavender,
+    x: 1100,
     y: 556,
   },
 ];
@@ -99,6 +108,9 @@ export class TownScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-P', () =>
       this.travelTo(SCENE_KEYS.PARK, text.town.travelPark),
     );
+    this.input.keyboard?.on('keydown-K', () =>
+      this.travelTo(SCENE_KEYS.SCHOOL, text.town.travelSchool),
+    );
     this.input.keyboard?.on('keydown-ESC', () =>
       this.travelTo(SCENE_KEYS.HOME, text.town.travelHome),
     );
@@ -124,7 +136,7 @@ export class TownScene extends Phaser.Scene {
   }
 
   private createLocationCard(location: Location): void {
-    const width = 300;
+    const width = 280;
     const height = 180;
     const card = this.add.container(location.x, location.y);
 

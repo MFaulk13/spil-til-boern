@@ -57,14 +57,14 @@ describe('applyCare', () => {
     expect(applyCare({ hunger: 90, joy: 50, energy: 50 }, 'feed').needs.hunger).toBe(100);
   });
 
-  it('only gives hearts when the need actually rises', () => {
-    const cared = applyCare(mid, 'play');
-    expect(cared.gained).toBe(CARE_EFFECTS.play.amount);
-    expect(cared.hearts).toBe(CARE_EFFECTS.play.hearts);
+  it('never awards hearts from care actions', () => {
+    for (const action of Object.keys(CARE_EFFECTS) as (keyof typeof CARE_EFFECTS)[]) {
+      expect(applyCare(mid, action).hearts).toBe(0);
+    }
 
     const capped = applyCare({ hunger: 100, joy: 95, energy: 50 }, 'pet');
     expect(capped.gained).toBe(5);
-    expect(capped.hearts).toBe(CARE_EFFECTS.pet.hearts);
+    expect(capped.hearts).toBe(0);
 
     const fullJoy = applyCare({ hunger: 80, joy: 100, energy: 50 }, 'pet');
     expect(fullJoy.gained).toBe(0);

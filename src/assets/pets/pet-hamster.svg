@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <g stroke="#4a3a32" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="256" cy="364" rx="112" ry="82" fill="#e8b56a" />
+    <ellipse cx="256" cy="400" rx="62" ry="52" fill="#f8e3be" stroke-width="8" />
+    <ellipse cx="172" cy="204" rx="40" ry="44" fill="#d9a25a" />
+    <ellipse cx="340" cy="204" rx="40" ry="44" fill="#d9a25a" />
+    <ellipse cx="172" cy="208" rx="20" ry="24" fill="#f3a6c8" stroke-width="6" />
+    <ellipse cx="340" cy="208" rx="20" ry="24" fill="#f3a6c8" stroke-width="6" />
+    <circle cx="256" cy="262" r="104" fill="#f0c07a" />
+    <ellipse cx="196" cy="296" rx="34" ry="26" fill="#fbe0b0" stroke-width="6" />
+    <ellipse cx="316" cy="296" rx="34" ry="26" fill="#fbe0b0" stroke-width="6" />
+    <ellipse cx="218" cy="246" rx="19" ry="23" fill="#3a2e2a" stroke="none" />
+    <ellipse cx="294" cy="246" rx="19" ry="23" fill="#3a2e2a" stroke="none" />
+    <circle cx="224" cy="240" r="6" fill="#ffffff" stroke="none" />
+    <circle cx="300" cy="240" r="6" fill="#ffffff" stroke="none" />
+    <ellipse cx="256" cy="286" rx="16" ry="12" fill="#e88fb8" stroke-width="6" />
+    <path d="M256 296 L256 304" fill="none" stroke="#4a3a32" stroke-width="7" />
+    <path d="M240 310 Q256 322 272 310" fill="none" stroke="#4a3a32" stroke-width="7" />
+    <rect x="242" y="314" width="12" height="18" rx="5" fill="#ffffff" stroke-width="5" />
+    <rect x="258" y="314" width="12" height="18" rx="5" fill="#ffffff" stroke-width="5" />
+    <g fill="none" stroke="#4a3a32" stroke-width="5" stroke-linecap="round">
+      <path d="M190 286 L146 276" />
+      <path d="M190 296 L148 306" />
+      <path d="M322 286 L366 276" />
+      <path d="M322 296 L364 306" />
+    </g>
+    <ellipse cx="212" cy="428" rx="32" ry="20" fill="#f8e3be" />
+    <ellipse cx="300" cy="428" rx="32" ry="20" fill="#f8e3be" />
+    <circle cx="188" cy="276" r="11" fill="#ff9aa6" opacity="0.5" stroke="none" />
+    <circle cx="324" cy="276" r="11" fill="#ff9aa6" opacity="0.5" stroke="none" />
+  </g>
+</svg>

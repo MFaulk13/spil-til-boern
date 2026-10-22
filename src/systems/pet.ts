@@ -11,11 +11,11 @@ export interface CareEffect {
 }
 
 export const CARE_EFFECTS: Record<CareAction, CareEffect> = {
-  feed: { need: 'hunger', amount: 35, hearts: 2 },
-  play: { need: 'joy', amount: 30, hearts: 3 },
-  pet: { need: 'joy', amount: 15, hearts: 1 },
-  sleep: { need: 'energy', amount: 40, hearts: 1 },
-  treat: { need: 'hunger', amount: 20, hearts: 1 },
+  feed: { need: 'hunger', amount: 35, hearts: 0 },
+  play: { need: 'joy', amount: 30, hearts: 0 },
+  pet: { need: 'joy', amount: 15, hearts: 0 },
+  sleep: { need: 'energy', amount: 40, hearts: 0 },
+  treat: { need: 'hunger', amount: 20, hearts: 0 },
 };
 
 export const NEED_DECAY_PER_SECOND: Record<CareNeed, number> = {

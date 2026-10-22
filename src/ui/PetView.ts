@@ -12,6 +12,7 @@ const HAPPY_TINT = 0xfff4d6;
 export class PetView extends Phaser.GameObjects.Container {
   private readonly content: Phaser.GameObjects.Container;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  private readonly glow: Phaser.GameObjects.Ellipse;
   private readonly size: number;
   private petId: PetId;
   private accessoryId: string | null;
@@ -38,8 +39,16 @@ export class PetView extends Phaser.GameObjects.Container {
     this.accessoryId = accessoryId;
 
     this.shadow = scene.add.ellipse(0, -2, size * 0.7, size * 0.14, COLORS.ink, 0.16);
+    this.glow = scene.add.ellipse(
+      0,
+      -size * 0.42,
+      size * 0.86,
+      size * 0.8,
+      getPet(petId).eggTint,
+      0.14,
+    );
     this.content = scene.add.container(0, 0);
-    this.add([this.shadow, this.content]);
+    this.add([this.shadow, this.glow, this.content]);
     this.rebuild();
 
     scene.add.existing(this);
@@ -47,6 +56,7 @@ export class PetView extends Phaser.GameObjects.Container {
 
   setPet(petId: PetId): this {
     this.petId = petId;
+    this.glow.setFillStyle(getPet(petId).eggTint, 0.14);
     this.rebuild();
     return this;
   }

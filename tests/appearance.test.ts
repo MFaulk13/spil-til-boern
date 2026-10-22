@@ -14,6 +14,7 @@ import { buildCharacterLayers, normalizeLook, randomizeLook } from '@/systems/ap
 import type { CharacterLook } from '@/game/types';
 
 const look: CharacterLook = {
+  gender: 'boy',
   skin: 'tan',
   hair: 'braid',
   hairColor: 'purple',
@@ -102,6 +103,11 @@ describe('buildCharacterLayers', () => {
       OUTFIT_COLORS.find((option) => option.id === look.outfitColor)?.color,
     );
     expect(layers[4].tint).toBe(HAIR_COLORS.find((option) => option.id === look.hairColor)?.color);
+  });
+
+  it('uses the chosen body for boy and girl', () => {
+    expect(buildCharacterLayers({ ...look, gender: 'boy' })[0].assetKey).toBe('body-base');
+    expect(buildCharacterLayers({ ...look, gender: 'girl' })[0].assetKey).toBe('body-girl');
   });
 
   it('omits the accessory layer when there is no accessory', () => {

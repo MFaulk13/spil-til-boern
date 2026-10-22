@@ -48,6 +48,8 @@ const CRACK_LINES: readonly (readonly [number, number][])[] = [
 export class HatchScene extends Phaser.Scene {
   private petId: PetId = 'dog';
   private petDefinition!: PetDefinition;
+  private price: number | null = null;
+  private fromShop = false;
   private taps = 0;
   private hatched = false;
   private egg?: EggView;
@@ -64,8 +66,13 @@ export class HatchScene extends Phaser.Scene {
     super(SCENE_KEYS.HATCH);
   }
 
-  init(data: { petId?: unknown }): void {
+  init(data: { petId?: unknown; price?: unknown; origin?: unknown }): void {
     this.petId = isPetId(data.petId) ? data.petId : 'dog';
+    this.price =
+      typeof data.price === 'number' && Number.isFinite(data.price) && data.price >= 0
+        ? Math.floor(data.price)
+        : null;
+    this.fromShop = data.origin === 'shop';
   }
 
   create(): void {
@@ -104,7 +111,7 @@ export class HatchScene extends Phaser.Scene {
     });
     this.input.keyboard?.on('keydown-ESC', () => {
       if (!this.hatched) {
-        this.scene.start(SCENE_KEYS.PET_SELECT);
+        this.scene.start(this.fromShop ? SCENE_KEYS.SHOP : SCENE_KEYS.PET_SELECT);
       }
     });
   }
@@ -389,7 +396,16 @@ export class HatchScene extends Phaser.Scene {
       return;
     }
     this.namePanelOpen = false;
-    save.setPet(createPetState(this.petId, this.selectedName));
+    if (this.price !== null && !save.spendHearts(this.price)) {
+      this.scene.start(SCENE_KEYS.SHOP);
+      return;
+    }
+    const pet = createPetState(this.petId, this.selectedName);
+    if (this.fromShop) {
+      save.addPet(pet, true);
+    } else {
+      save.setPet(pet);
+    }
     audio.play(this.petDefinition.voice);
     this.scene.start(SCENE_KEYS.HOME);
   }

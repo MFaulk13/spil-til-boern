@@ -31,9 +31,9 @@ const CARE_LAYOUT: readonly {
 ];
 
 const NEED_LAYOUT: readonly { need: CareNeed; x: number }[] = [
-  { need: 'hunger', x: 280 },
-  { need: 'joy', x: 510 },
-  { need: 'energy', x: 740 },
+  { need: 'hunger', x: 270 },
+  { need: 'joy', x: 460 },
+  { need: 'energy', x: 640 },
 ];
 
 export class HudScene extends Phaser.Scene {
@@ -70,7 +70,7 @@ export class HudScene extends Phaser.Scene {
     this.createBottomPanel();
 
     for (const layout of NEED_LAYOUT) {
-      const bar = new NeedBar(this, layout.x, 74, 210, layout.need, pet.needs[layout.need]);
+      const bar = new NeedBar(this, layout.x, 74, 175, layout.need, pet.needs[layout.need]);
       this.bars.set(layout.need, bar);
     }
 
@@ -82,6 +82,7 @@ export class HudScene extends Phaser.Scene {
       hearts: save.hearts,
       mood: moodOf(pet.needs),
       treatCount: 0,
+      petCount: save.pets.length,
     });
 
     gameEvents.on(GAME_EVENTS.HUD_STATE, this.applyState, this);
@@ -128,23 +129,51 @@ export class HudScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
 
-    this.add.image(978, 66, 'icon-heart').setDisplaySize(40, 40);
+    this.add.image(840, 66, 'icon-heart').setDisplaySize(36, 36);
     this.heartsText = this.add
-      .text(1002, 66, String(save.hearts), {
+      .text(864, 66, String(save.hearts), {
         fontFamily: FONT_FAMILY,
-        fontSize: '32px',
+        fontSize: '28px',
         color: COLORS.text,
         fontStyle: 'bold',
       })
       .setOrigin(0, 0.5);
 
     new Button(this, {
-      x: 1208,
+      x: 988,
+      y: 62,
+      label: text.hud.wardrobe,
+      iconKey: 'icon-hanger',
+      iconSize: 24,
+      width: 116,
+      height: 62,
+      fontSize: 19,
+      color: COLORS.lavender,
+      textColor: COLORS.text,
+      onClick: () => gameEvents.emit(GAME_EVENTS.WARDROBE_REQUESTED),
+    });
+
+    new Button(this, {
+      x: 1100,
+      y: 62,
+      label: text.hud.pets,
+      iconKey: 'icon-paw',
+      iconSize: 24,
+      width: 108,
+      height: 62,
+      fontSize: 19,
+      color: COLORS.accent,
+      textColor: COLORS.text,
+      onClick: () => gameEvents.emit(GAME_EVENTS.PETS_REQUESTED),
+    });
+
+    new Button(this, {
+      x: 1214,
       y: 62,
       label: text.hud.menu,
-      width: 112,
-      height: 64,
-      fontSize: 21,
+      width: 108,
+      height: 62,
+      fontSize: 19,
       color: COLORS.teal,
       onClick: () => gameEvents.emit(GAME_EVENTS.MENU_REQUESTED),
     });

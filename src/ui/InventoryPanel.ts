@@ -11,10 +11,10 @@ export interface InventoryEntry {
 }
 
 const PAGE_SIZE = 6;
-const PANEL_WIDTH = 340;
-const PANEL_HEIGHT = 486;
-const CARD_WIDTH = 145;
-const CARD_HEIGHT = 92;
+const PANEL_WIDTH = 368;
+const PANEL_HEIGHT = 520;
+const CARD_WIDTH = 156;
+const CARD_HEIGHT = 100;
 
 export class InventoryPanel extends Phaser.GameObjects.Container {
   private readonly entries: InventoryEntry[];
@@ -109,8 +109,8 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
       const column = index % 2;
       const row = Math.floor(index / 2);
       const card = new ItemCard(this.scene, {
-        x: column === 0 ? -80 : 80,
-        y: -150 + row * 92,
+        x: column === 0 ? -84 : 84,
+        y: -160 + row * 102,
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
         item: entry.item,
@@ -126,7 +126,7 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
     if (pages > 1) {
       const previous = new Button(this.scene, {
         x: -86,
-        y: 112,
+        y: 132,
         label: '<',
         width: 76,
         height: 56,
@@ -140,7 +140,7 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
       });
       const next = new Button(this.scene, {
         x: 86,
-        y: 112,
+        y: 132,
         label: '>',
         width: 76,
         height: 56,
@@ -153,7 +153,7 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
         },
       });
       const pageText = this.scene.add
-        .text(0, 112, `${this.page + 1} / ${pages}`, {
+        .text(0, 132, `${this.page + 1} / ${pages}`, {
           fontFamily: FONT_FAMILY,
           fontSize: '20px',
           color: COLORS.textMuted,

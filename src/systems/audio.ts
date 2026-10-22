@@ -13,6 +13,13 @@ export type SfxName =
   | 'chirp'
   | 'splash'
   | 'bubble'
+  | 'oink'
+  | 'cluck'
+  | 'squeak'
+  | 'tweet'
+  | 'quack'
+  | 'hoot'
+  | 'ribbit'
   | 'eat'
   | 'play'
   | 'love'
@@ -89,6 +96,36 @@ const SFX: Record<SfxName, Tone[]> = {
   bubble: [
     { frequency: 300, endFrequency: 640, delay: 0, duration: 0.13, type: 'sine', gain: 0.14 },
     { frequency: 380, endFrequency: 760, delay: 0.14, duration: 0.12, type: 'sine', gain: 0.1 },
+  ],
+  oink: [
+    { frequency: 190, endFrequency: 120, delay: 0, duration: 0.12, type: 'sawtooth', gain: 0.07 },
+    { frequency: 210, endFrequency: 130, delay: 0.16, duration: 0.12, type: 'sawtooth', gain: 0.06 },
+  ],
+  cluck: [
+    { frequency: 620, endFrequency: 430, delay: 0, duration: 0.07, type: 'square', gain: 0.08 },
+    { frequency: 700, endFrequency: 480, delay: 0.1, duration: 0.07, type: 'square', gain: 0.07 },
+    { frequency: 580, endFrequency: 400, delay: 0.2, duration: 0.07, type: 'square', gain: 0.06 },
+  ],
+  squeak: [
+    { frequency: 1350, endFrequency: 1850, delay: 0, duration: 0.08, type: 'sine', gain: 0.1 },
+    { frequency: 1500, endFrequency: 2000, delay: 0.1, duration: 0.08, type: 'sine', gain: 0.08 },
+  ],
+  tweet: [
+    { frequency: 1250, endFrequency: 1650, delay: 0, duration: 0.07, type: 'sine', gain: 0.12 },
+    { frequency: 1450, endFrequency: 1900, delay: 0.1, duration: 0.07, type: 'sine', gain: 0.1 },
+    { frequency: 1200, endFrequency: 1600, delay: 0.22, duration: 0.06, type: 'sine', gain: 0.08 },
+  ],
+  quack: [
+    { frequency: 420, endFrequency: 230, delay: 0, duration: 0.16, type: 'sawtooth', gain: 0.08 },
+    { frequency: 400, endFrequency: 220, delay: 0.2, duration: 0.14, type: 'sawtooth', gain: 0.06 },
+  ],
+  hoot: [
+    { frequency: 310, endFrequency: 250, delay: 0, duration: 0.22, type: 'sine', gain: 0.12 },
+    { frequency: 290, endFrequency: 230, delay: 0.3, duration: 0.3, type: 'sine', gain: 0.1 },
+  ],
+  ribbit: [
+    { frequency: 170, endFrequency: 270, delay: 0, duration: 0.12, type: 'square', gain: 0.08 },
+    { frequency: 160, endFrequency: 250, delay: 0.16, duration: 0.12, type: 'square', gain: 0.07 },
   ],
   eat: [
     { frequency: 210, endFrequency: 150, delay: 0, duration: 0.07, type: 'square', gain: 0.09 },

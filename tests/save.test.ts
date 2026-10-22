@@ -9,6 +9,7 @@ import {
 import type { CharacterLook, PetState } from '@/game/types';
 
 const look: CharacterLook = {
+  gender: 'boy',
   skin: 'medium',
   hair: 'short',
   hairColor: 'brown',
@@ -20,6 +21,7 @@ const look: CharacterLook = {
 };
 
 const pet: PetState = {
+  uid: 'pet-baloo',
   id: 'dog',
   name: 'Baloo',
   needs: { hunger: 80, joy: 70, energy: 60 },
@@ -46,14 +48,15 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(2);
+    expect(saved.version).toBe(3);
     expect(saved.settings.sound).toBe(false);
     expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toBeNull();
-    expect(saved.pet).toBeNull();
+    expect(saved.pets).toEqual([]);
+    expect(saved.activePetId).toBeNull();
   });
 
-  it('keeps a valid version 2 save', () => {
+  it('migrates a version 2 save with a single pet', () => {
     const saved = parseSave(
       JSON.stringify({
         version: 2,
@@ -69,15 +72,45 @@ describe('parseSave', () => {
       }),
     );
 
+    expect(saved.version).toBe(3);
     expect(saved.settings.sound).toBe(false);
     expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toEqual({ look });
-    expect(saved.pet).toEqual(pet);
+    expect(saved.pets).toEqual([pet]);
+    expect(saved.activePetId).toBe(pet.uid);
     expect(saved.wallet.hearts).toBe(42);
     expect(saved.wallet.earnedHearts).toBe(0);
     expect(saved.inventory).toEqual({ rug: 2 });
     expect(saved.home.furniture).toHaveLength(1);
     expect(saved.flags.tutorialDone).toBe(true);
+  });
+
+  it('keeps a valid version 3 save with several pets', () => {
+    const second = { ...pet, uid: 'pet-misse', id: 'cat' as const, name: 'Misse' };
+    const saved = parseSave(
+      JSON.stringify({
+        version: 3,
+        pets: [pet, second],
+        activePetId: second.uid,
+      }),
+    );
+
+    expect(saved.pets).toHaveLength(2);
+    expect(saved.activePetId).toBe(second.uid);
+  });
+
+  it('maps removed puppy and kitten pets to dog and cat', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 3,
+        pets: [
+          { ...pet, id: 'puppy' },
+          { ...pet, uid: 'pet-miv', id: 'kitten', name: 'Miv' },
+        ],
+      }),
+    );
+
+    expect(saved.pets.map((entry) => entry.id)).toEqual(['dog', 'cat']);
   });
 
   it('replaces invalid values with safe fallbacks', () => {
@@ -100,7 +133,8 @@ describe('parseSave', () => {
 
     expect(saved.settings.sound).toBe(true);
     expect(saved.player).toBeNull();
-    expect(saved.pet).toBeNull();
+    expect(saved.pets).toEqual([]);
+    expect(saved.activePetId).toBeNull();
     expect(saved.wallet.hearts).toBe(20);
     expect(saved.wallet.earnedHearts).toBe(0);
     expect(saved.inventory).toEqual({});
@@ -125,7 +159,28 @@ describe('parseSave', () => {
 
     expect(saved.inventory).toEqual({ rug: 1 });
     expect(saved.home.furniture.map((item) => item.itemId)).toEqual(['rug']);
-    expect(saved.pet?.accessory).toBeNull();
+    expect(saved.pets[0].accessory).toBeNull();
+  });
+
+  it('keeps furniture in every room of the home', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 3,
+        home: {
+          furniture: [
+            { uid: 'k', itemId: 'rug', room: 'kitchen', x: 128, y: 384 },
+            { uid: 'b', itemId: 'rug', room: 'bathroom', x: 128, y: 384 },
+            { uid: 'p', itemId: 'rug', room: 'playroom', x: 128, y: 384 },
+          ],
+        },
+      }),
+    );
+
+    expect(saved.home.furniture.map((item) => item.room)).toEqual([
+      'kitchen',
+      'bathroom',
+      'playroom',
+    ]);
   });
 
   it('normalizes unknown appearance ids to valid defaults', () => {
@@ -157,16 +212,45 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.pet?.needs).toEqual({ hunger: 100, joy: 0, energy: 55 });
+    expect(saved.pets[0].needs).toEqual({ hunger: 100, joy: 0, energy: 55 });
+  });
+
+  it('seeds purchase history from owned items in older saves', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 3,
+        inventory: { rug: 2 },
+        home: {
+          furniture: [{ uid: 'a1', itemId: 'rug', room: 'living', x: 4, y: 5 }],
+        },
+      }),
+    );
+
+    expect(saved.purchases).toEqual({ rug: 3 });
   });
 
   it('ignores saves from a future version', () => {
-    const saved = parseSave(JSON.stringify({ version: 99, settings: { sound: false }, pet }));
+    const saved = parseSave(
+      JSON.stringify({ version: 99, settings: { sound: false }, pets: [pet] }),
+    );
 
     expect(saved).toEqual({
       ...createDefaultSave(),
       settings: { sound: false, reduceMotion: false },
     });
+  });
+
+  it('gives duplicate pet ids a fresh uid', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 3,
+        pets: [pet, { ...pet }],
+        activePetId: pet.uid,
+      }),
+    );
+
+    expect(saved.pets).toHaveLength(2);
+    expect(saved.pets[0].uid).not.toBe(saved.pets[1].uid);
   });
 });
 
@@ -233,6 +317,24 @@ describe('SaveManager', () => {
     expect(manager.inventory.treat).toBeUndefined();
   });
 
+  it('keeps purchase history after items are consumed or placed', () => {
+    const storage = createMemoryStorage();
+    const manager = new SaveManager(storage);
+
+    manager.recordPurchase('cookie');
+    manager.addItem('cookie');
+    manager.consumeItem('cookie');
+    manager.recordPurchase('rug');
+    manager.addItem('rug');
+    manager.consumeItem('rug');
+    manager.addFurniture({ uid: 'r1', itemId: 'rug', room: 'living', x: 1, y: 1 });
+
+    expect(manager.purchases).toEqual({ cookie: 1, rug: 1 });
+
+    const reloaded = new SaveManager(storage);
+    expect(reloaded.purchases).toEqual({ cookie: 1, rug: 1 });
+  });
+
   it('adds and removes furniture', () => {
     const manager = new SaveManager(createMemoryStorage());
     const item = { uid: 'a1', itemId: 'rug', room: 'living', x: 2, y: 3 } as const;
@@ -261,10 +363,26 @@ describe('SaveManager', () => {
 
     expect(manager.playerLook).toBeNull();
     expect(manager.pet).toBeNull();
+    expect(manager.pets).toEqual([]);
+    expect(manager.activePetId).toBeNull();
     expect(manager.hearts).toBe(20);
     expect(manager.earnedHearts).toBe(0);
     expect(manager.soundEnabled).toBe(false);
     expect(manager.reduceMotion).toBe(true);
+  });
+
+  it('adopts more pets and switches the active pet', () => {
+    const manager = new SaveManager(createMemoryStorage());
+    manager.setPet(pet);
+    const cat = { ...pet, uid: 'pet-misse', id: 'cat' as const, name: 'Misse' };
+
+    manager.addPet(cat, false);
+    expect(manager.pets).toHaveLength(2);
+    expect(manager.pet?.name).toBe('Baloo');
+
+    expect(manager.setActivePet('pet-misse')).toBe(true);
+    expect(manager.pet?.name).toBe('Misse');
+    expect(manager.setActivePet('missing')).toBe(false);
   });
 
   it('sets and clears a pet accessory', () => {

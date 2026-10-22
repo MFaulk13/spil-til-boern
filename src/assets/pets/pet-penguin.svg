@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <g stroke="#4a3a32" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="256" cy="356" rx="112" ry="118" fill="#3f5f78" />
+    <ellipse cx="256" cy="382" rx="76" ry="92" fill="#f7f2ec" stroke-width="8" />
+    <ellipse cx="150" cy="352" rx="30" ry="76" fill="#35526a" transform="rotate(8 150 352)" />
+    <ellipse cx="362" cy="352" rx="30" ry="76" fill="#35526a" transform="rotate(-8 362 352)" />
+    <circle cx="256" cy="228" r="94" fill="#3f5f78" />
+    <ellipse cx="218" cy="228" rx="34" ry="42" fill="#f7f2ec" stroke-width="7" />
+    <ellipse cx="294" cy="228" rx="34" ry="42" fill="#f7f2ec" stroke-width="7" />
+    <circle cx="218" cy="232" r="16" fill="#3a2e2a" stroke="none" />
+    <circle cx="294" cy="232" r="16" fill="#3a2e2a" stroke="none" />
+    <circle cx="223" cy="226" r="5" fill="#ffffff" stroke="none" />
+    <circle cx="299" cy="226" r="5" fill="#ffffff" stroke="none" />
+    <path d="M236 270 L256 254 L276 270 L256 288 Z" fill="#f0a23a" stroke-width="7" />
+    <path d="M214 444 Q192 468 170 462 Q166 442 190 438 Z" fill="#f0a23a" stroke-width="7" />
+    <path d="M298 444 Q320 468 342 462 Q346 442 322 438 Z" fill="#f0a23a" stroke-width="7" />
+  </g>
+</svg>

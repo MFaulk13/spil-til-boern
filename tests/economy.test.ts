@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canAfford, itemCount, purchase, rewardCare, useItem } from '@/systems/economy';
+import { categoryPurchaseCount } from '@/game/catalog/items';
+import { canAfford, itemCount, purchase, useItem } from '@/systems/economy';
 import { createMemoryStorage, SaveManager } from '@/systems/save';
 
 function createStore(hearts = 20): SaveManager {
@@ -71,6 +72,19 @@ describe('economy', () => {
     expect(itemCount(store, 'gift')).toBe(1);
   });
 
+  it('records purchases in the category even after the item is used', () => {
+    const store = createStore(40);
+
+    purchase(store, 'cookie', 5);
+    purchase(store, 'cookie', 5);
+    purchase(store, 'rug', 15);
+    useItem(store, 'cookie');
+
+    expect(itemCount(store, 'cookie')).toBe(1);
+    expect(categoryPurchaseCount(store.purchases, 'treat')).toBe(2);
+    expect(categoryPurchaseCount(store.purchases, 'furniture')).toBe(1);
+  });
+
   it('consumes items that exist and ignores missing ones', () => {
     const store = createStore(20);
     purchase(store, 'treat', 5);
@@ -78,15 +92,5 @@ describe('economy', () => {
     expect(useItem(store, 'treat')).toBe(true);
     expect(itemCount(store, 'treat')).toBe(0);
     expect(useItem(store, 'treat')).toBe(false);
-  });
-
-  it('rewards care hearts only for positive amounts', () => {
-    const store = createStore(0);
-    const before = store.hearts;
-
-    expect(rewardCare(store, 3)).toBe(3);
-    expect(store.hearts).toBe(before + 3);
-    expect(rewardCare(store, 0)).toBe(0);
-    expect(rewardCare(store, -2)).toBe(0);
   });
 });
