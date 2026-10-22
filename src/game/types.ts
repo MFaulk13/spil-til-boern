@@ -33,6 +33,18 @@ export const ROOM_IDS = ['living', 'bedroom', 'kitchen', 'bathroom', 'playroom']
 
 export type RoomId = (typeof ROOM_IDS)[number];
 
+export const QUIZ_SUBJECTS = ['math', 'danish', 'english', 'nature'] as const;
+
+export type QuizSubject = (typeof QUIZ_SUBJECTS)[number];
+
+export interface SchoolProgress {
+  rounds: number;
+  bestStars: number;
+  firstTryCorrect: number;
+  totalQuestions: number;
+  firstCompleted: boolean;
+}
+
 export const ITEM_CATEGORIES = ['furniture', 'toy', 'accessory', 'treat'] as const;
 
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
@@ -88,7 +100,7 @@ export interface PlacedFurniture {
 }
 
 export interface SaveData {
-  version: 3;
+  version: 4;
   settings: {
     sound: boolean;
     reduceMotion: boolean;
@@ -107,6 +119,9 @@ export interface SaveData {
   home: {
     furniture: PlacedFurniture[];
   };
+  school: {
+    subjects: Partial<Record<QuizSubject, SchoolProgress>>;
+  };
   flags: {
     tutorialDone: boolean;
   };
@@ -122,6 +137,10 @@ export function isRoomId(value: unknown): value is RoomId {
 
 export function isItemCategory(value: unknown): value is ItemCategory {
   return typeof value === 'string' && (ITEM_CATEGORIES as readonly string[]).includes(value);
+}
+
+export function isQuizSubject(value: unknown): value is QuizSubject {
+  return typeof value === 'string' && (QUIZ_SUBJECTS as readonly string[]).includes(value);
 }
 
 export function createFullNeeds(): Needs {

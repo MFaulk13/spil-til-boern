@@ -139,6 +139,7 @@ import roomKitchenUrl from '@/assets/rooms/room-kitchen.svg';
 import roomLivingUrl from '@/assets/rooms/room-living.svg';
 import roomPlayroomUrl from '@/assets/rooms/room-playroom.svg';
 import parkUrl from '@/assets/town/park.svg';
+import schoolRoomUrl from '@/assets/town/school-room.svg';
 import shopRoomUrl from '@/assets/town/shop-room.svg';
 import townMapUrl from '@/assets/town/town-map.svg';
 import toyBallUrl from '@/assets/toys/toy-ball.svg';
@@ -161,8 +162,10 @@ import toyYarnBallUrl from '@/assets/toys/toy-yarn-ball.svg';
 import iconBookUrl from '@/assets/ui/icon-book.svg';
 import iconBoyUrl from '@/assets/ui/icon-boy.svg';
 import iconCheckUrl from '@/assets/ui/icon-check.svg';
+import iconDanishUrl from '@/assets/ui/icon-danish.svg';
 import iconDiceUrl from '@/assets/ui/icon-dice.svg';
 import iconEnergyUrl from '@/assets/ui/icon-energy.svg';
+import iconEnglishUrl from '@/assets/ui/icon-english.svg';
 import iconGirlUrl from '@/assets/ui/icon-girl.svg';
 import iconHangerUrl from '@/assets/ui/icon-hanger.svg';
 import iconHeartUrl from '@/assets/ui/icon-heart.svg';
@@ -170,10 +173,12 @@ import iconHungerUrl from '@/assets/ui/icon-hunger.svg';
 import iconHomeUrl from '@/assets/ui/icon-home.svg';
 import iconJoyUrl from '@/assets/ui/icon-joy.svg';
 import iconMathUrl from '@/assets/ui/icon-math.svg';
+import iconNatureUrl from '@/assets/ui/icon-nature.svg';
 import iconPaintUrl from '@/assets/ui/icon-paint.svg';
 import iconParkUrl from '@/assets/ui/icon-park.svg';
 import iconPawUrl from '@/assets/ui/icon-paw.svg';
 import iconShopUrl from '@/assets/ui/icon-shop.svg';
+import iconSoundUrl from '@/assets/ui/icon-sound.svg';
 import iconStarUrl from '@/assets/ui/icon-star.svg';
 import iconTapUrl from '@/assets/ui/icon-tap.svg';
 import iconTrashUrl from '@/assets/ui/icon-trash.svg';
@@ -294,6 +299,7 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { key: 'room-playroom', url: roomPlayroomUrl, width: 1280, height: 720 },
   { key: 'town-map', url: townMapUrl, width: 1280, height: 720 },
   { key: 'shop-room', url: shopRoomUrl, width: 1280, height: 720 },
+  { key: 'school-room', url: schoolRoomUrl, width: 1280, height: 720 },
   { key: 'park', url: parkUrl, width: 1280, height: 720 },
   { key: 'furniture-sofa', url: furnitureSofaUrl, width: 256, height: 128 },
   { key: 'furniture-chair', url: furnitureChairUrl, width: 128, height: 128 },
@@ -379,6 +385,10 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   icon('icon-boy', iconBoyUrl),
   icon('icon-girl', iconGirlUrl),
   icon('icon-math', iconMathUrl),
+  icon('icon-danish', iconDanishUrl),
+  icon('icon-english', iconEnglishUrl),
+  icon('icon-nature', iconNatureUrl),
+  icon('icon-sound', iconSoundUrl),
   icon('icon-hanger', iconHangerUrl),
 ];
 
@@ -388,7 +398,7 @@ export function getAsset(key: string): AssetEntry | undefined {
   return ASSETS_BY_KEY.get(key);
 }
 
-export const LAZY_SCENE_ASSET_KEYS = ['town-map', 'shop-room', 'park'] as const;
+export const LAZY_SCENE_ASSET_KEYS = ['town-map', 'shop-room', 'school-room', 'park'] as const;
 
 export const LAZY_ASSETS: readonly AssetEntry[] = ASSET_MANIFEST.filter((asset) =>
   (LAZY_SCENE_ASSET_KEYS as readonly string[]).includes(asset.key),

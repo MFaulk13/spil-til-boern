@@ -48,7 +48,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(3);
+    expect(saved.version).toBe(4);
     expect(saved.settings.sound).toBe(false);
     expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toBeNull();
@@ -72,7 +72,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(3);
+    expect(saved.version).toBe(4);
     expect(saved.settings.sound).toBe(false);
     expect(saved.settings.reduceMotion).toBe(false);
     expect(saved.player).toEqual({ look });
@@ -97,6 +97,49 @@ describe('parseSave', () => {
 
     expect(saved.pets).toHaveLength(2);
     expect(saved.activePetId).toBe(second.uid);
+    expect(saved.school.subjects).toEqual({});
+  });
+
+  it('keeps valid school progress and filters unknown subjects and stars', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 4,
+        school: {
+          subjects: {
+            math: {
+              rounds: 3,
+              bestStars: 9,
+              firstTryCorrect: 12,
+              totalQuestions: 15,
+              firstCompleted: true,
+            },
+            english: {
+              rounds: 1,
+              bestStars: 1,
+              firstTryCorrect: 3,
+              totalQuestions: 5,
+            },
+            dragon: { rounds: 4, bestStars: 3 },
+          },
+        },
+      }),
+    );
+
+    expect(saved.school.subjects.math).toEqual({
+      rounds: 3,
+      bestStars: 3,
+      firstTryCorrect: 12,
+      totalQuestions: 15,
+      firstCompleted: true,
+    });
+    expect(saved.school.subjects.english).toEqual({
+      rounds: 1,
+      bestStars: 1,
+      firstTryCorrect: 3,
+      totalQuestions: 5,
+      firstCompleted: true,
+    });
+    expect(Object.keys(saved.school.subjects)).toEqual(['math', 'english']);
   });
 
   it('maps removed puppy and kitten pets to dog and cat', () => {
@@ -267,6 +310,43 @@ describe('SaveManager', () => {
     expect(reloaded.reduceMotion).toBe(true);
   });
 
+  it('records school rounds and keeps the best result', () => {
+    const storage = createMemoryStorage();
+    const manager = new SaveManager(storage);
+
+    const first = manager.recordSchoolRound('math', {
+      stars: 2,
+      firstTryCorrect: 4,
+      totalQuestions: 5,
+    });
+    expect(first.firstCompletion).toBe(true);
+    expect(manager.schoolProgress('math')).toMatchObject({
+      rounds: 1,
+      bestStars: 2,
+      firstTryCorrect: 4,
+      totalQuestions: 5,
+      firstCompleted: true,
+    });
+
+    const second = manager.recordSchoolRound('math', {
+      stars: 3,
+      firstTryCorrect: 5,
+      totalQuestions: 5,
+    });
+    expect(second.firstCompletion).toBe(false);
+    expect(manager.schoolProgress('math')).toMatchObject({
+      rounds: 2,
+      bestStars: 3,
+      firstTryCorrect: 9,
+      totalQuestions: 10,
+      firstCompleted: true,
+    });
+
+    const reloaded = new SaveManager(storage);
+    expect(reloaded.schoolProgress('math').rounds).toBe(2);
+    expect(reloaded.schoolProgress('danish').firstCompleted).toBe(false);
+  });
+
   it('persists the player look and pet', () => {
     const storage = createMemoryStorage();
     const manager = new SaveManager(storage);
@@ -358,6 +438,7 @@ describe('SaveManager', () => {
     manager.setPet(pet);
     manager.addHearts(10);
     manager.setReduceMotion(true);
+    manager.recordSchoolRound('math', { stars: 3, firstTryCorrect: 5, totalQuestions: 5 });
 
     manager.resetGame();
 
@@ -367,6 +448,7 @@ describe('SaveManager', () => {
     expect(manager.activePetId).toBeNull();
     expect(manager.hearts).toBe(20);
     expect(manager.earnedHearts).toBe(0);
+    expect(manager.schoolProgress('math').rounds).toBe(0);
     expect(manager.soundEnabled).toBe(false);
     expect(manager.reduceMotion).toBe(true);
   });

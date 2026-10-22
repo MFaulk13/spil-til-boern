@@ -19,6 +19,7 @@ import {
   treatCount,
 } from '@/game/catalog/items';
 import { PETS, createPetState, getPet, pickNewPetName } from '@/game/catalog/pets';
+import { QUIZ_SUBJECT_INFO } from '@/game/catalog/quiz';
 import { ROOMS } from '@/game/catalog/rooms';
 import { createFullNeeds, ITEM_CATEGORIES, PET_IDS, ROOM_IDS, type RoomId } from '@/game/types';
 
@@ -84,7 +85,11 @@ describe('asset manifest', () => {
       expect(manifestKeys.has(room.assetKey), `missing room asset: ${room.assetKey}`).toBe(true);
     }
 
-    for (const key of ['town-map', 'shop-room', 'park']) {
+    for (const info of QUIZ_SUBJECT_INFO) {
+      expect(manifestKeys.has(info.icon), `missing school subject icon: ${info.icon}`).toBe(true);
+    }
+
+    for (const key of ['town-map', 'shop-room', 'school-room', 'park']) {
       expect(manifestKeys.has(key), `missing scene asset: ${key}`).toBe(true);
     }
   });

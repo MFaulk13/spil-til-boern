@@ -4,14 +4,22 @@ import {
   clampNeed,
   isPetId,
   isRoomId,
+  QUIZ_SUBJECTS,
   type CharacterLook,
   type Needs,
   type PetId,
   type PetState,
   type PlacedFurniture,
+  type QuizSubject,
   type SaveData,
+  type SchoolProgress,
 } from '@/game/types';
 import { normalizeLook } from '@/systems/appearance';
+import {
+  EMPTY_SCHOOL_PROGRESS,
+  nextSchoolProgress,
+  type SchoolRoundResult,
+} from '@/systems/school';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -21,7 +29,7 @@ export interface StorageLike {
 
 const STORAGE_KEY = 'gotar:save';
 const LEGACY_STORAGE_KEY = 'spil:save';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 const PROBE_KEY = 'gotar:probe';
 const STARTING_HEARTS = 20;
 
@@ -36,6 +44,7 @@ export function createDefaultSave(): SaveData {
     inventory: {},
     purchases: {},
     home: { furniture: [] },
+    school: { subjects: {} },
     flags: { tutorialDone: false },
   };
 }
@@ -247,6 +256,35 @@ function parseFurniture(value: unknown): PlacedFurniture[] {
   return furniture;
 }
 
+function parseSchool(value: unknown): SaveData['school'] {
+  const record = isRecord(value) ? value : {};
+  const rawSubjects = isRecord(record.subjects) ? record.subjects : {};
+  const subjects: Partial<Record<QuizSubject, SchoolProgress>> = {};
+
+  for (const subject of QUIZ_SUBJECTS) {
+    const entry = rawSubjects[subject];
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const rounds = readCount(entry.rounds, 0);
+    const bestStars = Math.min(readCount(entry.bestStars, 0), 3);
+    const firstTryCorrect = readCount(entry.firstTryCorrect, 0);
+    const totalQuestions = readCount(entry.totalQuestions, 0);
+    if (rounds === 0 && bestStars === 0 && firstTryCorrect === 0 && totalQuestions === 0) {
+      continue;
+    }
+    subjects[subject] = {
+      rounds,
+      bestStars,
+      firstTryCorrect,
+      totalQuestions,
+      firstCompleted: readBoolean(entry.firstCompleted, rounds > 0),
+    };
+  }
+
+  return { subjects };
+}
+
 function readSettings(
   parsed: Record<string, unknown>,
   fallback: SaveData['settings'],
@@ -276,7 +314,7 @@ export function parseSave(raw: string | null): SaveData {
   }
 
   const settings = readSettings(parsed, fallback.settings);
-  if (parsed.version !== 2 && parsed.version !== SAVE_VERSION) {
+  if (parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SAVE_VERSION) {
     return { ...fallback, settings };
   }
 
@@ -292,6 +330,7 @@ export function parseSave(raw: string | null): SaveData {
     : (pets[0]?.uid ?? null);
   const inventory = parseInventory(parsed.inventory);
   const furniture = parseFurniture(home.furniture);
+  const school = parseSchool(parsed.school);
   const legacyPurchaseCounts: Record<string, number> = { ...inventory };
   for (const placed of furniture) {
     legacyPurchaseCounts[placed.itemId] = (legacyPurchaseCounts[placed.itemId] ?? 0) + 1;
@@ -310,6 +349,7 @@ export function parseSave(raw: string | null): SaveData {
     inventory,
     purchases: parsePurchases(parsed.purchases, legacyPurchaseCounts),
     home: { furniture },
+    school,
     flags: {
       tutorialDone: readBoolean(flags.tutorialDone, fallback.flags.tutorialDone),
     },
@@ -399,6 +439,10 @@ export class SaveManager {
 
   get tutorialDone(): boolean {
     return this.data.flags.tutorialDone;
+  }
+
+  schoolProgress(subject: QuizSubject): SchoolProgress {
+    return this.data.school.subjects[subject] ?? EMPTY_SCHOOL_PROGRESS;
   }
 
   setSoundEnabled(enabled: boolean): void {
@@ -559,6 +603,17 @@ export class SaveManager {
     }
     this.data.flags.tutorialDone = done;
     this.persist();
+  }
+
+  recordSchoolRound(
+    subject: QuizSubject,
+    result: SchoolRoundResult,
+  ): { progress: SchoolProgress; firstCompletion: boolean } {
+    const current = this.data.school.subjects[subject];
+    const outcome = nextSchoolProgress(current, result);
+    this.data.school.subjects[subject] = outcome.progress;
+    this.persist();
+    return outcome;
   }
 
   resetGame(): void {

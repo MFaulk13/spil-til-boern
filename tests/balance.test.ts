@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ITEMS } from '@/game/catalog/items';
 import { PETS } from '@/game/catalog/pets';
-import { QUIZ_HEARTS_PER_ANSWER, QUIZ_ROUND_LENGTH } from '@/game/catalog/quiz';
+import { QUIZ_ROUND_LENGTH } from '@/game/catalog/quiz';
 import { createDefaultSave } from '@/systems/save';
+import { heartsForRound } from '@/systems/school';
 import { CARE_EFFECTS, MOOD_THRESHOLDS, NEED_DECAY_PER_SECOND } from '@/systems/pet';
 
 describe('balance', () => {
@@ -16,9 +17,18 @@ describe('balance', () => {
 
   it('lets a child earn enough for the cheapest item from one quiz round', () => {
     const cheapestPrice = Math.min(...ITEMS.map((item) => item.price));
-    const quizHearts = QUIZ_HEARTS_PER_ANSWER * QUIZ_ROUND_LENGTH;
+    const quizHearts = heartsForRound(3, true);
 
     expect(quizHearts + createDefaultSave().wallet.hearts).toBeGreaterThanOrEqual(cheapestPrice);
+  });
+
+  it('keeps a school round rewarding without replacing the shop economy', () => {
+    const firstRound = heartsForRound(3, true);
+    const repeatRound = heartsForRound(3, false);
+
+    expect(firstRound).toBeLessThanOrEqual(20);
+    expect(repeatRound).toBeLessThan(firstRound);
+    expect(QUIZ_ROUND_LENGTH).toBe(5);
   });
 
   it('prices every pet adoption within reach of a few quiz rounds', () => {
