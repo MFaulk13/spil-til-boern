@@ -122,8 +122,7 @@ export function applyCare(needs: Needs, action: CareAction, context?: CareContex
   }
 
   const baseBond = before < LOW_NEED_THRESHOLD ? 3 : before < CARE_BOND_THRESHOLD ? 1 : 0;
-  const bond =
-    gained > 0 && before < CARE_BOND_THRESHOLD ? baseBond + (favorite ? 1 : 0) : 0;
+  const bond = gained > 0 && before < CARE_BOND_THRESHOLD ? baseBond + (favorite ? 1 : 0) : 0;
 
   return {
     needs: updated,

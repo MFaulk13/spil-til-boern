@@ -105,9 +105,7 @@ describe('applyCare', () => {
     expect(plain.favorite).toBe(false);
     expect(plain.bond).toBe(1);
     expect(midJoy.bond).toBe(2);
-    expect(
-      applyCare({ hunger: 50, joy: 70, energy: 50 }, 'play', { petId: 'dog' }).bond,
-    ).toBe(0);
+    expect(applyCare({ hunger: 50, joy: 70, energy: 50 }, 'play', { petId: 'dog' }).bond).toBe(0);
   });
 
   it('gives a favourite treat a bigger effect and extra bond', () => {
