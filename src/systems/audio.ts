@@ -27,6 +27,7 @@ export type SfxName =
   | 'happy'
   | 'sad'
   | 'unlock'
+  | 'sniff'
   | 'error';
 
 interface Tone {
@@ -99,7 +100,14 @@ const SFX: Record<SfxName, Tone[]> = {
   ],
   oink: [
     { frequency: 190, endFrequency: 120, delay: 0, duration: 0.12, type: 'sawtooth', gain: 0.07 },
-    { frequency: 210, endFrequency: 130, delay: 0.16, duration: 0.12, type: 'sawtooth', gain: 0.06 },
+    {
+      frequency: 210,
+      endFrequency: 130,
+      delay: 0.16,
+      duration: 0.12,
+      type: 'sawtooth',
+      gain: 0.06,
+    },
   ],
   cluck: [
     { frequency: 620, endFrequency: 430, delay: 0, duration: 0.07, type: 'square', gain: 0.08 },
@@ -165,6 +173,10 @@ const SFX: Record<SfxName, Tone[]> = {
     { frequency: 587.33, delay: 0, duration: 0.12, type: 'sine', gain: 0.16 },
     { frequency: 880, delay: 0.08, duration: 0.12, type: 'sine', gain: 0.16 },
     { frequency: 1174.66, delay: 0.16, duration: 0.28, type: 'sine', gain: 0.14 },
+  ],
+  sniff: [
+    { frequency: 340, endFrequency: 520, delay: 0, duration: 0.1, type: 'sine', gain: 0.1 },
+    { frequency: 380, endFrequency: 620, delay: 0.14, duration: 0.1, type: 'sine', gain: 0.08 },
   ],
   error: [
     { frequency: 260, endFrequency: 180, delay: 0, duration: 0.2, type: 'square', gain: 0.08 },
@@ -235,6 +247,39 @@ export class AudioManager {
     for (const tone of SFX[name]) {
       this.playTone(context, tone, now, context.destination);
     }
+  }
+
+  playNotes(
+    frequencies: readonly number[],
+    noteDuration = 0.28,
+    gap = 0.08,
+    type: OscillatorType = 'triangle',
+  ): void {
+    if (!this.enabled || frequencies.length === 0) {
+      return;
+    }
+    const context = this.getContext();
+    if (!context) {
+      return;
+    }
+    if (context.state === 'suspended') {
+      void context.resume();
+    }
+    const now = context.currentTime;
+    frequencies.forEach((frequency, index) => {
+      this.playTone(
+        context,
+        {
+          frequency,
+          delay: index * (noteDuration + gap),
+          duration: noteDuration,
+          type,
+          gain: 0.14,
+        },
+        now,
+        context.destination,
+      );
+    });
   }
 
   startMusic(): void {

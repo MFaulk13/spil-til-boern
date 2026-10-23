@@ -6,7 +6,6 @@ import {
   type QuizOption,
   type QuizQuestion,
   type QuizSubject,
-  type QuizVisual,
 } from '@/game/catalog/quiz';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
@@ -21,11 +20,13 @@ import {
   HEARTS_PER_STAR,
   starsFor,
 } from '@/systems/school';
+import { initialAdaptiveState, nextAdaptiveState, type AdaptiveQuizState } from '@/systems/quiz';
 import { isSpeechAvailable, speak, stopSpeaking } from '@/systems/speech';
 import { Button } from '@/ui/Button';
 import { PetView } from '@/ui/PetView';
+import { drawQuizVisual } from '@/ui/QuizVisualView';
 import { drawBackdrop } from '@/ui/background';
-import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
 
 interface AnswerButton {
   option: QuizOption;
@@ -47,6 +48,7 @@ export class QuizScene extends Phaser.Scene {
   private attemptedWrong = false;
   private locked = false;
   private summaryShown = false;
+  private adaptive: AdaptiveQuizState = initialAdaptiveState(0);
   private progressText?: Phaser.GameObjects.Text;
   private heartsText?: Phaser.GameObjects.Text;
   private questionText?: Phaser.GameObjects.Text;
@@ -57,6 +59,7 @@ export class QuizScene extends Phaser.Scene {
   private petView?: PetView;
   private readonly answerButtons: AnswerButton[] = [];
   private readonly wrongIds = new Set<string>();
+  private readonly usedIds = new Set<string>();
 
   constructor() {
     super(SCENE_KEYS.QUIZ);
@@ -83,6 +86,8 @@ export class QuizScene extends Phaser.Scene {
     this.summaryShown = false;
     this.answerButtons.length = 0;
     this.wrongIds.clear();
+    this.usedIds.clear();
+    this.adaptive = initialAdaptiveState(save.schoolProgress(this.subject).bestStars);
 
     drawBackdrop(this);
     this.createHeader();
@@ -114,10 +119,11 @@ export class QuizScene extends Phaser.Scene {
     });
 
     const info = getQuizSubjectInfo(this.subject);
+    const accent = SUBJECT_COLORS[this.subject];
     const panel = this.add.graphics();
     panel.fillStyle(COLORS.panel, 0.94);
     panel.fillRoundedRect(390, 14, 500, 96, 28);
-    panel.lineStyle(5, COLORS.accent, 0.6);
+    panel.lineStyle(5, accent, 0.8);
     panel.strokeRoundedRect(390, 14, 500, 96, 28);
 
     this.add.image(438, 62, info.icon).setDisplaySize(48, 48);
@@ -161,7 +167,7 @@ export class QuizScene extends Phaser.Scene {
     const panel = this.add.graphics();
     panel.fillStyle(COLORS.panel, 0.98);
     panel.fillRoundedRect(150, 120, 980, 180, 30);
-    panel.lineStyle(5, COLORS.teal, 0.7);
+    panel.lineStyle(5, SUBJECT_COLORS[this.subject], 0.7);
     panel.strokeRoundedRect(150, 120, 980, 180, 30);
 
     this.add.image(218, 162, getQuizSubjectInfo(this.subject).icon).setDisplaySize(44, 44);
@@ -188,7 +194,7 @@ export class QuizScene extends Phaser.Scene {
       fontSize: 20,
       color: COLORS.lavender,
       textColor: COLORS.textDark,
-      onClick: () => this.readQuestion(),
+      onClick: () => this.playListen(),
     });
     this.listenButton.setVisible(false).setEnabled(false);
 
@@ -237,23 +243,32 @@ export class QuizScene extends Phaser.Scene {
     this.visualLayer?.removeAll(true);
     this.listenButton?.setVisible(false).setEnabled(false);
 
-    this.question = createQuizQuestion(this.subject, this.previousId);
+    this.question = createQuizQuestion(this.subject, {
+      previousId: this.previousId,
+      usedIds: this.usedIds,
+      difficulty: this.adaptive.difficulty,
+      allowAudio: audio.isEnabled,
+    });
     this.previousId = this.question.id;
+    this.usedIds.add(this.question.id);
     this.questionText?.setText(this.question.prompt);
     this.progressText?.setText(text.quiz.progress(this.solvedCount + 1, QUIZ_ROUND_LENGTH));
     this.updateListenButton();
     this.drawVisual(this.question.visual);
 
     this.question.options.forEach((option, index) => {
+      const fontSize = option.label.length > 30 ? 23 : option.label.length > 20 ? 26 : 30;
       const button = new Button(this, {
         x: GAME_WIDTH / 2,
         y: ANSWER_START_Y + index * ANSWER_GAP,
         label: option.label,
         width: ANSWER_WIDTH,
         height: ANSWER_HEIGHT,
-        fontSize: 30,
+        fontSize,
         color: COLORS.panelLight,
         textColor: COLORS.text,
+        wrapWidth: ANSWER_WIDTH - 56,
+        lineSpacing: 2,
         onClick: () => this.answer(index),
       });
       this.answerLayer?.add(button);
@@ -262,114 +277,38 @@ export class QuizScene extends Phaser.Scene {
   }
 
   private updateListenButton(): void {
-    const canListen = Boolean(this.question?.readAloud && isSpeechAvailable() && this.listenButton);
-    this.listenButton?.setVisible(canListen).setEnabled(canListen);
+    const hasNotes = Boolean(this.question?.audio?.length);
+    const canSpeak = Boolean(this.question?.readAloud && isSpeechAvailable());
+    const canListen = Boolean((hasNotes || canSpeak) && this.listenButton);
+    this.listenButton
+      ?.setLabel(this.question?.audio ? text.quiz.listenNotes : text.quiz.listen)
+      .setVisible(canListen)
+      .setEnabled(canListen);
+  }
+
+  private playListen(): void {
+    if (!this.question) {
+      return;
+    }
+    if (this.question.audio?.length) {
+      audio.playNotes(this.question.audio);
+      return;
+    }
+    this.readQuestion();
   }
 
   private readQuestion(): void {
     if (!this.question) {
       return;
     }
-    speak(this.question.speech ?? this.question.prompt);
+    speak(this.question.speech ?? this.question.prompt, this.question.speechLang ?? 'da-DK');
   }
 
-  private drawVisual(visual: QuizVisual | undefined): void {
+  private drawVisual(visual: QuizQuestion['visual']): void {
     if (!visual || !this.visualLayer) {
       return;
     }
-    if (visual.kind === 'clock') {
-      this.drawClock(visual.hour, visual.minute);
-      return;
-    }
-    this.drawCoins(visual.coins);
-  }
-
-  private drawClock(hour: number, minute: number): void {
-    if (!this.visualLayer) {
-      return;
-    }
-    const centerX = 1030;
-    const centerY = 245;
-    const radius = 50;
-    const graphics = this.add.graphics();
-    graphics.fillStyle(COLORS.panel, 1);
-    graphics.fillCircle(centerX, centerY, radius);
-    graphics.lineStyle(5, COLORS.ink, 0.85);
-    graphics.strokeCircle(centerX, centerY, radius);
-
-    for (let index = 0; index < 12; index += 1) {
-      const angle = (index / 12) * Math.PI * 2 - Math.PI / 2;
-      const inner = radius - (index % 3 === 0 ? 13 : 9);
-      graphics.lineStyle(index % 3 === 0 ? 4 : 2, COLORS.ink, 0.65);
-      graphics.beginPath();
-      graphics.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
-      graphics.lineTo(
-        centerX + Math.cos(angle) * (radius - 5),
-        centerY + Math.sin(angle) * (radius - 5),
-      );
-      graphics.strokePath();
-    }
-
-    const hourAngle = (((hour % 12) + minute / 60) / 12) * Math.PI * 2 - Math.PI / 2;
-    const minuteAngle = (minute / 60) * Math.PI * 2 - Math.PI / 2;
-    graphics.lineStyle(6, COLORS.primaryDark, 1);
-    graphics.beginPath();
-    graphics.moveTo(centerX, centerY);
-    graphics.lineTo(
-      centerX + Math.cos(hourAngle) * (radius * 0.48),
-      centerY + Math.sin(hourAngle) * (radius * 0.48),
-    );
-    graphics.strokePath();
-    graphics.lineStyle(4, COLORS.tealDark, 1);
-    graphics.beginPath();
-    graphics.moveTo(centerX, centerY);
-    graphics.lineTo(
-      centerX + Math.cos(minuteAngle) * (radius * 0.72),
-      centerY + Math.sin(minuteAngle) * (radius * 0.72),
-    );
-    graphics.strokePath();
-    graphics.fillStyle(COLORS.ink, 1);
-    graphics.fillCircle(centerX, centerY, 5);
-    this.visualLayer.add(graphics);
-  }
-
-  private drawCoins(coins: readonly number[]): void {
-    if (!this.visualLayer || coins.length === 0) {
-      return;
-    }
-    const centerX = 1030;
-    const centerY = 245;
-    const spacing = 44;
-    const totalWidth = (coins.length - 1) * spacing;
-    const colors: Record<number, number> = {
-      1: 0xd9a05b,
-      2: 0xc7c9cc,
-      5: 0xe0b84a,
-      10: 0xe0b84a,
-      20: 0xe0b84a,
-    };
-
-    coins.forEach((coin, index) => {
-      const x = centerX - totalWidth / 2 + index * spacing;
-      const circle = this.add.graphics();
-      circle.fillStyle(colors[coin] ?? COLORS.accent, 1);
-      circle.fillCircle(x, centerY, 19);
-      circle.lineStyle(3, COLORS.ink, 0.7);
-      circle.strokeCircle(x, centerY, 19);
-      circle.fillStyle(0xffffff, 0.28);
-      circle.fillCircle(x - 5, centerY - 6, 5);
-      this.visualLayer?.add(circle);
-
-      const label = this.add
-        .text(x, centerY, String(coin), {
-          fontFamily: FONT_FAMILY,
-          fontSize: '17px',
-          color: COLORS.textDark,
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-      this.visualLayer?.add(label);
-    });
+    drawQuizVisual(this, this.visualLayer, visual);
   }
 
   private chooseIndex(index: number): void {
@@ -398,6 +337,7 @@ export class QuizScene extends Phaser.Scene {
     }
 
     this.attemptedWrong = true;
+    this.adaptive = nextAdaptiveState(this.adaptive, false);
     this.wrongIds.add(entry.option.id);
     audio.play('error');
     this.petView?.playNod();
@@ -421,6 +361,7 @@ export class QuizScene extends Phaser.Scene {
     this.solvedCount += 1;
     if (!this.attemptedWrong) {
       this.firstTryCorrect += 1;
+      this.adaptive = nextAdaptiveState(this.adaptive, true);
     }
     this.baseHearts += HEARTS_PER_SOLVED;
     save.addHearts(HEARTS_PER_SOLVED);

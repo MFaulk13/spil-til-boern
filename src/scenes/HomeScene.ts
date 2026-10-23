@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { firstTreatId, getItem, treatCount, type ItemDefinition } from '@/game/catalog/items';
 import { getPet } from '@/game/catalog/pets';
 import { getRoom, ROOMS, type RoomDefinition } from '@/game/catalog/rooms';
+import { TALENTS, type TalentDefinition, type TalentId } from '@/game/catalog/talents';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import type { Needs, PetId, RoomId } from '@/game/types';
@@ -27,9 +28,10 @@ import {
 } from '@/systems/pet';
 import { canPlace, clampCenter, createFurnitureUid, footprintOf } from '@/systems/placement';
 import { save } from '@/systems/save';
+import { speak } from '@/systems/speech';
 import { CharacterView } from '@/ui/CharacterView';
 import { InventoryPanel, type InventoryEntry } from '@/ui/InventoryPanel';
-import { PetPanel } from '@/ui/PetPanel';
+import { PetPanel, type PetPanelMode } from '@/ui/PetPanel';
 import { PetView } from '@/ui/PetView';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -57,6 +59,7 @@ export class HomeScene extends Phaser.Scene {
   private petFacingRight = true;
   private autosaveElapsed = 0;
   private hudElapsed = 0;
+  private talentReadyAt = 0;
   private actionReadyAt: Record<CareAction, number> = {
     feed: 0,
     play: 0,
@@ -104,6 +107,7 @@ export class HomeScene extends Phaser.Scene {
     this.moveTarget = null;
     this.autosaveElapsed = 0;
     this.hudElapsed = 0;
+    this.talentReadyAt = 0;
     this.actionReadyAt = { feed: 0, play: 0, pet: 0, sleep: 0, treat: 0 };
     this.placementMode = false;
     this.selectedUid = null;
@@ -217,6 +221,7 @@ export class HomeScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-E', () => this.togglePlacement());
     this.input.keyboard?.on('keydown-C', () => this.goToWardrobe());
     this.input.keyboard?.on('keydown-K', () => this.openPetPanel());
+    this.input.keyboard?.on('keydown-L', () => this.openPetPanel('talents'));
     this.input.on('pointermove', this.updateGhost, this);
   }
 
@@ -490,7 +495,7 @@ export class HomeScene extends Phaser.Scene {
     this.scene.start(SCENE_KEYS.CHARACTER, { mode: 'edit' });
   }
 
-  private openPetPanel(): void {
+  private openPetPanel(mode: PetPanelMode = 'pets'): void {
     if (this.petPanel) {
       return;
     }
@@ -499,14 +504,142 @@ export class HomeScene extends Phaser.Scene {
     }
     this.persistNeeds();
     this.scene.stop(SCENE_KEYS.HUD);
+    const unlockedTalentIds = new Set<TalentId>(
+      TALENTS.filter((talent) => save.schoolProgress(talent.subject).firstCompleted).map(
+        (talent) => talent.id,
+      ),
+    );
     this.petPanel = new PetPanel(
       this,
       save.pets,
       save.activePetId,
+      unlockedTalentIds,
       (uid) => this.switchPet(uid),
+      (talent) => this.handleTalent(talent),
       () => this.closePetPanel(),
       () => this.goToPetShop(),
+      mode,
     );
+  }
+
+  private handleTalent(talent: TalentDefinition): void {
+    this.closePetPanel();
+    this.time.delayedCall(0, () => this.performTalent(talent));
+  }
+
+  private performTalent(talent: TalentDefinition): void {
+    if (!save.schoolProgress(talent.subject).firstCompleted) {
+      return;
+    }
+    const now = this.time.now;
+    if (now < this.talentReadyAt) {
+      return;
+    }
+    this.talentReadyAt = now + 1200;
+    audio.unlock();
+
+    const before = this.needs.joy;
+    this.needs = { ...this.needs, joy: Math.min(100, this.needs.joy + 5) };
+    if (this.needs.joy !== before) {
+      save.updateNeeds(this.needs);
+    }
+    this.refreshPetMood();
+    this.emitHudState();
+
+    if (talent.sound) {
+      audio.play(talent.sound);
+    }
+
+    switch (talent.animation) {
+      case 'count':
+        this.petView.playNod();
+        this.spawnTalentText('1', 0);
+        this.spawnTalentText('2', 260);
+        this.spawnTalentText('3', 520);
+        break;
+      case 'read':
+        this.petView.playNod();
+        this.spawnTalentText('A B C', 80);
+        break;
+      case 'hello':
+        this.petView.playJoy();
+        speak(text.talents.hello.message, 'en-US');
+        break;
+      case 'sniff':
+        this.petView.playNod();
+        this.spawnTalentIcon('icon-nature');
+        break;
+      case 'bow':
+        this.petView.playBow();
+        break;
+      case 'fold':
+        this.petView.playSleep();
+        break;
+      case 'sing':
+        this.petView.playJoy();
+        if (talent.notes) {
+          audio.playNotes(talent.notes);
+        }
+        this.spawnTalentText('♪', 0);
+        this.spawnTalentText('♪', 180);
+        this.spawnTalentText('♪', 360);
+        break;
+      case 'jump':
+        this.petView.playHop();
+        this.time.delayedCall(260, () => this.petView.playJoy());
+        break;
+    }
+
+    this.showPetMessage(text.talents[talent.id].message);
+  }
+
+  private spawnTalentText(label: string, delay: number): void {
+    this.time.delayedCall(delay, () => {
+      const note = this.add
+        .text(this.petView.x + Phaser.Math.Between(-30, 30), this.petView.y - 170, label, {
+          fontFamily: FONT_FAMILY,
+          fontSize: '28px',
+          color: COLORS.textAccent,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(970);
+
+      if (isReducedMotion()) {
+        this.time.delayedCall(900, () => note.destroy());
+        return;
+      }
+
+      this.tweens.add({
+        targets: note,
+        y: note.y - 60,
+        alpha: 0,
+        duration: 900,
+        ease: 'Quad.easeOut',
+        onComplete: () => note.destroy(),
+      });
+    });
+  }
+
+  private spawnTalentIcon(iconKey: string): void {
+    const icon = this.add
+      .image(this.petView.x, this.petView.y - 150, iconKey)
+      .setDisplaySize(46, 46)
+      .setDepth(970);
+
+    if (isReducedMotion()) {
+      this.time.delayedCall(1000, () => icon.destroy());
+      return;
+    }
+
+    this.tweens.add({
+      targets: icon,
+      y: icon.y - 46,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Quad.easeOut',
+      onComplete: () => icon.destroy(),
+    });
   }
 
   private closePetPanel(relaunchHud = true): void {

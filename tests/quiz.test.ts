@@ -8,13 +8,14 @@ import {
   type MathQuestionType,
 } from '@/game/catalog/quiz';
 import { text } from '@/game/text';
-import { QUIZ_SUBJECTS } from '@/game/types';
+import { QUIZ_SUBJECTS, type QuizSubject } from '@/game/types';
 import {
   FIRST_COMPLETION_BONUS,
   heartsForRound,
   nextSchoolProgress,
   starsFor,
 } from '@/systems/school';
+import { initialAdaptiveState, nextAdaptiveState, startDifficulty } from '@/systems/quiz';
 
 const MATH_TYPES: readonly MathQuestionType[] = [
   'add',
@@ -25,6 +26,20 @@ const MATH_TYPES: readonly MathQuestionType[] = [
   'word',
   'clock',
   'money',
+  'fraction',
+  'shape',
+  'numberline',
+  'rounding',
+];
+
+const STATIC_SUBJECTS: readonly Exclude<QuizSubject, 'math'>[] = [
+  'danish',
+  'english',
+  'nature',
+  'history',
+  'religion',
+  'music',
+  'sport',
 ];
 
 describe('quiz', () => {
@@ -51,18 +66,58 @@ describe('quiz', () => {
     }
   });
 
-  it('generates every math question type', () => {
+  it('has at least 30 questions and 10 per difficulty for every static subject', () => {
+    for (const subject of STATIC_SUBJECTS) {
+      const bank = text.quiz[subject];
+      expect(bank.length).toBeGreaterThanOrEqual(30);
+      for (const difficulty of [1, 2, 3] as const) {
+        expect(
+          bank.filter((entry) => entry.difficulty === difficulty).length,
+        ).toBeGreaterThanOrEqual(10);
+      }
+      expect(new Set(bank.map((entry) => entry.prompt)).size).toBe(bank.length);
+      for (const entry of bank) {
+        expect(entry.options).toHaveLength(3);
+        expect(new Set(entry.options).size).toBe(3);
+        expect(entry.answer).toBeGreaterThanOrEqual(0);
+        expect(entry.answer).toBeLessThan(entry.options.length);
+        expect(entry.explanation.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('speaks English questions with an English voice where it adds value', () => {
+    const english = text.quiz.english;
+    expect(english.some((entry) => entry.speechLang === 'en-US')).toBe(true);
+    expect(text.quiz.danish.some((entry) => entry.speech !== undefined)).toBe(true);
+  });
+
+  it('has both audio and text questions in music', () => {
+    const music = text.quiz.music;
+    expect(music.some((entry) => entry.audio && entry.audio.length > 0)).toBe(true);
+    expect(music.some((entry) => !entry.audio)).toBe(true);
+  });
+
+  it('generates every math question type at every difficulty', () => {
     for (const type of MATH_TYPES) {
-      for (let index = 0; index < 30; index += 1) {
-        const question = createMathQuestionOfType(type);
-        expect(question.options).toHaveLength(3);
-        expect(question.options.some((option) => option.id === question.answerId)).toBe(true);
-        expect(Number(question.answerId)).toBeGreaterThanOrEqual(0);
+      for (const difficulty of [1, 2, 3] as const) {
+        for (let index = 0; index < 20; index += 1) {
+          const question = createMathQuestionOfType(type, Math, difficulty);
+          expect(question.options).toHaveLength(3);
+          expect(question.options.some((option) => option.id === question.answerId)).toBe(true);
+          expect(question.difficulty).toBe(difficulty);
+          if (type !== 'fraction') {
+            expect(Number(question.answerId)).toBeGreaterThanOrEqual(0);
+          }
+        }
       }
     }
 
     expect(createMathQuestionOfType('clock').visual?.kind).toBe('clock');
     expect(createMathQuestionOfType('money').visual?.kind).toBe('coins');
+    expect(createMathQuestionOfType('fraction').visual?.kind).toBe('fraction');
+    expect(createMathQuestionOfType('shape').visual?.kind).toBe('shape');
+    expect(createMathQuestionOfType('numberline').visual?.kind).toBe('numberLine');
   });
 
   it('keeps division exact and subtraction non-negative', () => {
@@ -80,11 +135,21 @@ describe('quiz', () => {
   });
 
   it('only reads aloud where it makes sense', () => {
-    for (const subject of ['math', 'english', 'nature'] as const) {
+    for (const subject of [
+      'math',
+      'english',
+      'nature',
+      'history',
+      'religion',
+      'music',
+      'sport',
+    ] as const) {
       expect(createQuizQuestion(subject).readAloud).toBe(true);
     }
 
-    const danish = Array.from({ length: 80 }, () => createQuizQuestion('danish'));
+    const danish = ([1, 2, 3] as const).flatMap((difficulty) =>
+      Array.from({ length: 40 }, () => createQuizQuestion('danish', { difficulty })),
+    );
     expect(danish.some((question) => question.readAloud)).toBe(true);
     expect(danish.some((question) => !question.readAloud)).toBe(true);
     expect(danish.some((question) => question.speech !== undefined)).toBe(true);
@@ -101,15 +166,62 @@ describe('quiz', () => {
   });
 
   it('can avoid repeating the previous bank question', () => {
-    const first = createQuizQuestion('danish', undefined, { random: () => 0 });
-    const second = createQuizQuestion('danish', first.id, { random: () => 0 });
+    const first = createQuizQuestion('danish', { source: { random: () => 0 } });
+    const second = createQuizQuestion('danish', {
+      previousId: first.id,
+      source: { random: () => 0 },
+    });
     expect(second.id).not.toBe(first.id);
+  });
+
+  it('never repeats a question inside a five question round', () => {
+    for (const subject of QUIZ_SUBJECTS) {
+      const used = new Set<string>();
+      for (let index = 0; index < QUIZ_ROUND_LENGTH; index += 1) {
+        const question = createQuizQuestion(subject, {
+          usedIds: used,
+          difficulty: 1,
+          allowAudio: false,
+        });
+        expect(used.has(question.id)).toBe(false);
+        used.add(question.id);
+      }
+      expect(used.size).toBe(QUIZ_ROUND_LENGTH);
+    }
   });
 
   it('creates math questions with a calm round length', () => {
     expect(QUIZ_ROUND_LENGTH).toBeGreaterThanOrEqual(3);
     expect(QUIZ_ROUND_LENGTH).toBeLessThanOrEqual(8);
     expect(createMathQuestion().prompt.length).toBeGreaterThan(0);
+  });
+});
+
+describe('adaptive difficulty', () => {
+  it('starts calm and raises the level after a streak', () => {
+    expect(startDifficulty(0)).toBe(1);
+    expect(startDifficulty(2)).toBe(2);
+    expect(startDifficulty(3)).toBe(2);
+
+    let state = initialAdaptiveState(0);
+    state = nextAdaptiveState(state, true);
+    expect(state).toEqual({ difficulty: 1, streak: 1 });
+    state = nextAdaptiveState(state, true);
+    expect(state).toEqual({ difficulty: 2, streak: 0 });
+    state = nextAdaptiveState(state, true);
+    state = nextAdaptiveState(state, true);
+    expect(state).toEqual({ difficulty: 3, streak: 0 });
+    state = nextAdaptiveState(state, true);
+    state = nextAdaptiveState(state, true);
+    expect(state.difficulty).toBe(3);
+  });
+
+  it('lowers the level after a wrong answer and clamps to one', () => {
+    let state = initialAdaptiveState(3);
+    state = nextAdaptiveState(state, false);
+    expect(state).toEqual({ difficulty: 1, streak: 0 });
+    state = nextAdaptiveState(state, false);
+    expect(state).toEqual({ difficulty: 1, streak: 0 });
   });
 });
 

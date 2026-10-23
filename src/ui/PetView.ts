@@ -220,6 +220,42 @@ export class PetView extends Phaser.GameObjects.Container {
     });
   }
 
+  playBow(): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    this.idleTween?.pause();
+    this.scene.tweens.add({
+      targets: this.content,
+      angle: -12,
+      duration: 220,
+      yoyo: true,
+      hold: 260,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.content.angle = 0;
+        this.idleTween?.resume();
+      },
+    });
+  }
+
+  playSpin(): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    this.idleTween?.pause();
+    this.scene.tweens.add({
+      targets: this.content,
+      angle: 360,
+      duration: 620,
+      ease: 'Cubic.easeInOut',
+      onComplete: () => {
+        this.content.angle = 0;
+        this.idleTween?.resume();
+      },
+    });
+  }
+
   private rebuild(): void {
     this.content.removeAll(true);
     this.accessoryImage = undefined;

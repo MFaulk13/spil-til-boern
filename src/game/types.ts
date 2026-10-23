@@ -33,7 +33,16 @@ export const ROOM_IDS = ['living', 'bedroom', 'kitchen', 'bathroom', 'playroom']
 
 export type RoomId = (typeof ROOM_IDS)[number];
 
-export const QUIZ_SUBJECTS = ['math', 'danish', 'english', 'nature'] as const;
+export const QUIZ_SUBJECTS = [
+  'math',
+  'danish',
+  'english',
+  'nature',
+  'history',
+  'religion',
+  'music',
+  'sport',
+] as const;
 
 export type QuizSubject = (typeof QUIZ_SUBJECTS)[number];
 

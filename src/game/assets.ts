@@ -169,19 +169,23 @@ import iconEnglishUrl from '@/assets/ui/icon-english.svg';
 import iconGirlUrl from '@/assets/ui/icon-girl.svg';
 import iconHangerUrl from '@/assets/ui/icon-hanger.svg';
 import iconHeartUrl from '@/assets/ui/icon-heart.svg';
+import iconHistoryUrl from '@/assets/ui/icon-history.svg';
 import iconHungerUrl from '@/assets/ui/icon-hunger.svg';
 import iconHomeUrl from '@/assets/ui/icon-home.svg';
 import iconJoyUrl from '@/assets/ui/icon-joy.svg';
 import iconMathUrl from '@/assets/ui/icon-math.svg';
+import iconMusicUrl from '@/assets/ui/icon-music.svg';
 import iconNatureUrl from '@/assets/ui/icon-nature.svg';
 import iconPaintUrl from '@/assets/ui/icon-paint.svg';
 import iconParkUrl from '@/assets/ui/icon-park.svg';
 import iconPawUrl from '@/assets/ui/icon-paw.svg';
 import iconShopUrl from '@/assets/ui/icon-shop.svg';
 import iconSoundUrl from '@/assets/ui/icon-sound.svg';
+import iconSportUrl from '@/assets/ui/icon-sport.svg';
 import iconStarUrl from '@/assets/ui/icon-star.svg';
 import iconTapUrl from '@/assets/ui/icon-tap.svg';
 import iconTrashUrl from '@/assets/ui/icon-trash.svg';
+import iconReligionUrl from '@/assets/ui/icon-religion.svg';
 
 export interface AssetEntry {
   key: string;
@@ -388,6 +392,10 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   icon('icon-danish', iconDanishUrl),
   icon('icon-english', iconEnglishUrl),
   icon('icon-nature', iconNatureUrl),
+  icon('icon-history', iconHistoryUrl),
+  icon('icon-religion', iconReligionUrl),
+  icon('icon-music', iconMusicUrl),
+  icon('icon-sport', iconSportUrl),
   icon('icon-sound', iconSoundUrl),
   icon('icon-hanger', iconHangerUrl),
 ];

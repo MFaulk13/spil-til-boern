@@ -23,15 +23,15 @@ sekund, og butikken sælger intet tøj.
 
 ## Startgarderobe
 
-| Fane    | Gratis fra start                     | Låst fra start        |
-| ------- | ------------------------------------ | --------------------- |
-| Køn     | 2                                    | 0                     |
-| Hud     | 6                                    | 0                     |
-| Hår     | 3 frisurer + 4 farver                | 8 frisurer + 6 farver |
-| Øjne    | 3 i skaberen, alle 9 i skabet        | 0                     |
-| Mund    | 3 i skaberen, alle 9 i skabet        | 0                     |
-| Tøj     | 3 outfits + 4 farver                 | 14 outfits + 6 farver |
-| Tilbehør | Ingen + briller + kasket            | 13                    |
+| Fane     | Gratis fra start              | Låst fra start        |
+| -------- | ----------------------------- | --------------------- |
+| Køn      | 2                             | 0                     |
+| Hud      | 6                             | 0                     |
+| Hår      | 3 frisurer + 4 farver         | 8 frisurer + 6 farver |
+| Øjne     | 3 i skaberen, alle 9 i skabet | 0                     |
+| Mund     | 3 i skaberen, alle 9 i skabet | 0                     |
+| Tøj      | 3 outfits + 4 farver          | 14 outfits + 6 farver |
+| Tilbehør | Ingen + briller + kasket      | 13                    |
 
 Første karakter-skaber går fra ca. 90 valg til ca. 31 valg fordelt på de samme 7
 faner.

@@ -1,5 +1,5 @@
 import { MIN_TOUCH_TARGET } from '@/game/constants';
-import type { CareNeed, ItemCategory } from '@/game/types';
+import type { CareNeed, ItemCategory, QuizSubject } from '@/game/types';
 import type { CareAction, Mood } from '@/systems/pet';
 
 export const COLORS = {
@@ -18,6 +18,9 @@ export const COLORS = {
   lavender: 0xc9b2e8,
   ground: 0xa7d8a0,
   groundDark: 0x7fbb7a,
+  history: 0xd9a05b,
+  music: 0x8fb8ff,
+  sport: 0xff9f70,
   hill: 0x8acb8a,
   ink: 0x3a2e2a,
   text: '#3a2e2a',
@@ -42,6 +45,17 @@ export const CARE_COLORS: Record<CareAction, number> = {
   pet: 0xc9b2e8,
   sleep: 0x62c9b8,
   treat: 0xff9f70,
+};
+
+export const SUBJECT_COLORS: Record<QuizSubject, number> = {
+  math: COLORS.teal,
+  danish: COLORS.primary,
+  english: COLORS.sky,
+  nature: COLORS.ground,
+  history: COLORS.history,
+  religion: COLORS.lavender,
+  music: COLORS.music,
+  sport: COLORS.sport,
 };
 
 export const CATEGORY_COLORS: Record<ItemCategory, number> = {

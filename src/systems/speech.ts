@@ -3,24 +3,36 @@ type SpeechGlobal = typeof globalThis & {
   SpeechSynthesisUtterance?: new (text: string) => SpeechSynthesisUtterance;
 };
 
-let cachedVoice: SpeechSynthesisVoice | null | undefined;
+export type SpeechLanguage = 'da-DK' | 'en-US';
+
+const cachedVoices = new Map<string, SpeechSynthesisVoice | null>();
 
 function getGlobal(): SpeechGlobal {
   return globalThis as SpeechGlobal;
 }
 
-function getDanishVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice !== undefined) {
-    return cachedVoice;
+function getVoice(language: SpeechLanguage): SpeechSynthesisVoice | null {
+  if (cachedVoices.has(language)) {
+    return cachedVoices.get(language) ?? null;
   }
   const synth = getGlobal().speechSynthesis;
   if (!synth) {
-    cachedVoice = null;
-    return cachedVoice;
+    cachedVoices.set(language, null);
+    return null;
   }
-  cachedVoice =
-    synth.getVoices().find((voice) => voice.lang.toLowerCase().startsWith('da')) ?? null;
-  return cachedVoice;
+
+  const normalized = language.toLowerCase();
+  const prefix = normalized.slice(0, 2);
+  const voices = synth.getVoices();
+  if (voices.length === 0) {
+    return null;
+  }
+  const voice =
+    voices.find((candidate) => candidate.lang.toLowerCase().startsWith(normalized)) ??
+    voices.find((candidate) => candidate.lang.toLowerCase().startsWith(prefix)) ??
+    null;
+  cachedVoices.set(language, voice);
+  return voice;
 }
 
 export function isSpeechAvailable(): boolean {
@@ -28,7 +40,7 @@ export function isSpeechAvailable(): boolean {
   return Boolean(global.speechSynthesis && global.SpeechSynthesisUtterance);
 }
 
-export function speak(text: string): boolean {
+export function speak(text: string, language: SpeechLanguage = 'da-DK'): boolean {
   const global = getGlobal();
   if (!global.speechSynthesis || !global.SpeechSynthesisUtterance || text.trim().length === 0) {
     return false;
@@ -36,10 +48,10 @@ export function speak(text: string): boolean {
 
   global.speechSynthesis.cancel();
   const utterance = new global.SpeechSynthesisUtterance(text);
-  utterance.lang = 'da-DK';
-  utterance.rate = 0.9;
+  utterance.lang = language;
+  utterance.rate = language === 'en-US' ? 0.85 : 0.9;
   utterance.pitch = 1.05;
-  const voice = getDanishVoice();
+  const voice = getVoice(language);
   if (voice) {
     utterance.voice = voice;
   }

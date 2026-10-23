@@ -7,23 +7,42 @@ import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
-import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
 
-const CARD_WIDTH = 400;
+const CARD_WIDTH = 280;
 const CARD_HEIGHT = 196;
 const CARD_POSITIONS: readonly { x: number; y: number }[] = [
-  { x: 410, y: 286 },
-  { x: 870, y: 286 },
-  { x: 410, y: 510 },
-  { x: 870, y: 510 },
+  { x: 190, y: 318 },
+  { x: 490, y: 318 },
+  { x: 790, y: 318 },
+  { x: 1090, y: 318 },
+  { x: 190, y: 548 },
+  { x: 490, y: 548 },
+  { x: 790, y: 548 },
+  { x: 1090, y: 548 },
 ];
 
-const SUBJECT_COLORS: Record<QuizSubject, number> = {
-  math: COLORS.teal,
-  danish: COLORS.primary,
-  english: COLORS.sky,
-  nature: COLORS.ground,
-};
+const SUBJECT_KEYS: readonly QuizSubject[] = [
+  'math',
+  'danish',
+  'english',
+  'nature',
+  'history',
+  'religion',
+  'music',
+  'sport',
+];
+
+const SUBJECT_KEY_CODES = [
+  Phaser.Input.Keyboard.KeyCodes.ONE,
+  Phaser.Input.Keyboard.KeyCodes.TWO,
+  Phaser.Input.Keyboard.KeyCodes.THREE,
+  Phaser.Input.Keyboard.KeyCodes.FOUR,
+  Phaser.Input.Keyboard.KeyCodes.FIVE,
+  Phaser.Input.Keyboard.KeyCodes.SIX,
+  Phaser.Input.Keyboard.KeyCodes.SEVEN,
+  Phaser.Input.Keyboard.KeyCodes.EIGHT,
+] as const;
 
 export class SchoolScene extends Phaser.Scene {
   private starting = false;
@@ -47,10 +66,13 @@ export class SchoolScene extends Phaser.Scene {
       this.createCard(info, position.x, position.y, index);
     });
 
-    this.input.keyboard?.on('keydown-ONE', () => this.startQuiz('math'));
-    this.input.keyboard?.on('keydown-TWO', () => this.startQuiz('danish'));
-    this.input.keyboard?.on('keydown-THREE', () => this.startQuiz('english'));
-    this.input.keyboard?.on('keydown-FOUR', () => this.startQuiz('nature'));
+    for (let index = 0; index < SUBJECT_KEYS.length; index += 1) {
+      const keyCode = SUBJECT_KEY_CODES[index];
+      const subject = SUBJECT_KEYS[index];
+      if (keyCode !== undefined && subject) {
+        this.input.keyboard?.addKey(keyCode).on('down', () => this.startQuiz(subject));
+      }
+    }
     this.input.keyboard?.on('keydown-ESC', () => this.goBack());
     this.cameras.main.fadeIn(240, 255, 246, 229);
   }
@@ -60,9 +82,9 @@ export class SchoolScene extends Phaser.Scene {
       x: 96,
       y: 58,
       label: text.school.back,
-      width: 170,
-      height: 70,
-      fontSize: 24,
+      width: 176,
+      height: 76,
+      fontSize: 25,
       color: COLORS.panelLight,
       textColor: COLORS.text,
       onClick: () => this.goBack(),
@@ -117,74 +139,84 @@ export class SchoolScene extends Phaser.Scene {
 
     const background = this.add.graphics();
     background.fillStyle(COLORS.panel, 0.98);
-    background.fillRoundedRect(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 30);
-    background.lineStyle(6, color, 0.95);
-    background.strokeRoundedRect(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 30);
+    background.fillRoundedRect(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 26);
+    background.lineStyle(5, color, 0.95);
+    background.strokeRoundedRect(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 26);
     background.fillStyle(color, 0.2);
     background.fillRoundedRect(
-      -CARD_WIDTH / 2 + 14,
-      -CARD_HEIGHT / 2 + 14,
-      CARD_WIDTH - 28,
-      64,
-      20,
+      -CARD_WIDTH / 2 + 12,
+      -CARD_HEIGHT / 2 + 12,
+      CARD_WIDTH - 24,
+      58,
+      18,
     );
 
-    const icon = this.add.image(-150, -52, info.icon).setDisplaySize(58, 58);
+    const icon = this.add.image(-96, -58, info.icon).setDisplaySize(42, 42);
     const title = this.add
-      .text(-108, -52, info.label, {
+      .text(-66, -58, info.label, {
         fontFamily: FONT_FAMILY,
-        fontSize: '30px',
+        fontSize: '22px',
         color: COLORS.text,
         fontStyle: 'bold',
+        wordWrap: { width: 180 },
       })
       .setOrigin(0, 0.5);
 
     const hint = this.add
-      .text(-176, 4, info.hint, {
+      .text(-116, -4, info.hint, {
         fontFamily: FONT_FAMILY,
-        fontSize: '19px',
+        fontSize: '17px',
         color: COLORS.textMuted,
-        wordWrap: { width: 348 },
+        wordWrap: { width: 232 },
+        lineSpacing: 2,
       })
       .setOrigin(0, 0.5);
 
     const stars = this.createStars(progress.bestStars);
-    stars.setPosition(-176, 50);
+    stars.setPosition(-116, 40);
 
-    if (progress.bestStars > 0) {
-      const best = this.add
-        .text(-54, 50, text.school.bestStars(progress.bestStars), {
+    const accuracy =
+      progress.totalQuestions > 0
+        ? Math.round((progress.firstTryCorrect / progress.totalQuestions) * 100)
+        : 0;
+    const stats = this.add
+      .text(
+        -116,
+        68,
+        progress.rounds > 0 ? text.school.stats(progress.rounds, accuracy) : text.school.newSubject,
+        {
           fontFamily: FONT_FAMILY,
-          fontSize: '17px',
+          fontSize: '16px',
           color: COLORS.textMuted,
           fontStyle: 'bold',
-        })
-        .setOrigin(0, 0.5);
-      card.add(best);
-    }
+        },
+      )
+      .setOrigin(0, 0.5);
 
-    const play = new Button(this, {
-      x: 112,
-      y: 50,
-      label: text.school.play,
-      width: 150,
-      height: 64,
-      fontSize: 24,
-      color,
-      textColor: COLORS.text,
-      onClick: () => this.startQuiz(info.subject),
-    });
+    const playPill = this.add.graphics();
+    playPill.fillStyle(color, 1);
+    playPill.fillRoundedRect(40, 44, 84, 38, 19);
+    playPill.lineStyle(3, 0xffffff, 0.28);
+    playPill.strokeRoundedRect(40, 44, 84, 38, 19);
+    const playText = this.add
+      .text(82, 63, text.school.play, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '20px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
-    card.add([background, icon, title, hint, stars, play]);
+    card.add([background, icon, title, hint, stars, stats, playPill, playText]);
     card.setSize(CARD_WIDTH, CARD_HEIGHT);
     card.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT),
+      new Phaser.Geom.Rectangle(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT),
       Phaser.Geom.Rectangle.Contains,
     );
     card.on('pointerup', () => this.startQuiz(info.subject));
     card.on('pointerover', () => {
       if (!isReducedMotion()) {
-        card.setScale(1.02);
+        card.setScale(1.025);
       }
     });
     card.on('pointerout', () => card.setScale(1));
@@ -196,7 +228,7 @@ export class SchoolScene extends Phaser.Scene {
         alpha: 1,
         y,
         duration: 260,
-        delay: index * 70,
+        delay: index * 45,
         ease: 'Back.easeOut',
       });
     }
@@ -205,7 +237,7 @@ export class SchoolScene extends Phaser.Scene {
   private createStars(bestStars: number): Phaser.GameObjects.Container {
     const container = this.add.container(0, 0);
     for (let index = 0; index < 3; index += 1) {
-      const star = this.add.image(index * 38, 0, 'icon-star').setDisplaySize(32, 32);
+      const star = this.add.image(index * 28, 0, 'icon-star').setDisplaySize(24, 24);
       if (index >= bestStars) {
         star.setTint(0xb9aea5).setAlpha(0.55);
       }
