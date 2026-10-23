@@ -411,6 +411,26 @@ export class PetView extends Phaser.GameObjects.Container {
 
     bubble.add(this.scene.add.image(34, 0, `icon-${this.lowNeed}`).setDisplaySize(44, 44));
 
+    bubble.setSize(width, height);
+    bubble.setInteractive(
+      new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    bubble.on(
+      'pointerdown',
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+        if (this.lowNeed) {
+          this.emit('wish', this.lowNeed);
+        }
+      },
+    );
+
     this.add(bubble);
     this.bubble = bubble;
 

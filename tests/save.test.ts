@@ -319,6 +319,51 @@ describe('parseSave', () => {
     expect(saved.pets).toHaveLength(2);
     expect(saved.pets[0].uid).not.toBe(saved.pets[1].uid);
   });
+
+  it('skips the home guide for existing players without the new flags', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 5,
+        flags: { tutorialDone: true },
+      }),
+    );
+
+    expect(saved.flags.homeGuide).toEqual({
+      played: true,
+      decorated: true,
+      town: true,
+    });
+  });
+
+  it('starts the home guide from scratch for new players', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 5,
+        flags: { tutorialDone: false },
+      }),
+    );
+
+    expect(saved.flags.homeGuide).toEqual({
+      played: false,
+      decorated: false,
+      town: false,
+    });
+  });
+
+  it('reads partial home guide progress', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 5,
+        flags: { tutorialDone: true, homeGuide: { played: true, town: 'ja' } },
+      }),
+    );
+
+    expect(saved.flags.homeGuide).toEqual({
+      played: true,
+      decorated: false,
+      town: false,
+    });
+  });
 });
 
 describe('SaveManager', () => {
@@ -456,6 +501,22 @@ describe('SaveManager', () => {
     expect(manager.buyWardrobeItem('outfit-hoodie')).toBe(false);
     expect(manager.buyWardrobeItem('hair-short')).toBe(false);
     expect(manager.hearts).toBe(6);
+  });
+
+  it('persists home guide progress', () => {
+    const storage = createMemoryStorage();
+    const manager = createManager(storage);
+
+    expect(manager.homeGuide).toEqual({ played: false, decorated: false, town: false });
+
+    manager.markHomeGuide('played');
+    manager.markHomeGuide('played');
+    manager.markHomeGuide('decorated');
+
+    expect(manager.homeGuide).toEqual({ played: true, decorated: true, town: false });
+
+    const reloaded = new SaveManager(storage);
+    expect(reloaded.homeGuide).toEqual({ played: true, decorated: true, town: false });
   });
 
   it('adds and removes furniture', () => {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { CareNeed, Needs, PetId } from '@/game/types';
+import type { CareNeed, GuideTarget, Needs, PetId } from '@/game/types';
 import type { CareAction, Mood } from '@/systems/pet';
 
 export const GAME_EVENTS = {
@@ -13,6 +13,7 @@ export const GAME_EVENTS = {
   WARDROBE_REQUESTED: 'gotar:wardrobe-requested',
   PETS_REQUESTED: 'gotar:pets-requested',
   PLACEMENT_STATE: 'gotar:placement-state',
+  GUIDE_TARGET: 'gotar:guide-target',
 } as const;
 
 export interface PlacementState {
@@ -33,6 +34,10 @@ export interface CareFeedback {
   action: CareAction;
   hearts: number;
   need: CareNeed;
+}
+
+export interface GuideTargetState {
+  target: GuideTarget;
 }
 
 export const gameEvents = new Phaser.Events.EventEmitter();

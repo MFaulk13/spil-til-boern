@@ -1,5 +1,5 @@
 import { text } from '@/game/text';
-import type { Point, RoomId, WorldRect } from '@/game/types';
+import type { HomeFixture, Point, RoomId, WorldRect } from '@/game/types';
 
 export interface RoomDoor {
   target: RoomId;
@@ -15,6 +15,7 @@ export interface RoomDefinition {
   bounds: WorldRect;
   placementArea: WorldRect;
   spawn: Point;
+  fixtures: readonly HomeFixture[];
   doors: readonly RoomDoor[];
 }
 
@@ -36,6 +37,11 @@ export const ROOMS: Record<RoomId, RoomDefinition> = {
     bounds: ROOM_BOUNDS,
     placementArea: PLACEMENT_AREA,
     spawn: { x: 590, y: 586 },
+    fixtures: [
+      { id: 'bowl', x: 236, y: 586 },
+      { id: 'ball', x: 1032, y: 584 },
+      { id: 'cushion', x: 916, y: 574 },
+    ],
     doors: [
       {
         target: 'kitchen',
@@ -70,6 +76,7 @@ export const ROOMS: Record<RoomId, RoomDefinition> = {
     bounds: ROOM_BOUNDS,
     placementArea: PLACEMENT_AREA,
     spawn: { x: 300, y: 586 },
+    fixtures: [{ id: 'cushion', x: 916, y: 574 }],
     doors: [BACK_TO_LIVING],
   },
   kitchen: {
@@ -79,6 +86,7 @@ export const ROOMS: Record<RoomId, RoomDefinition> = {
     bounds: ROOM_BOUNDS,
     placementArea: PLACEMENT_AREA,
     spawn: { x: 640, y: 586 },
+    fixtures: [{ id: 'bowl', x: 262, y: 586 }],
     doors: [BACK_TO_LIVING],
   },
   bathroom: {
@@ -88,6 +96,7 @@ export const ROOMS: Record<RoomId, RoomDefinition> = {
     bounds: ROOM_BOUNDS,
     placementArea: PLACEMENT_AREA,
     spawn: { x: 640, y: 586 },
+    fixtures: [],
     doors: [BACK_TO_LIVING],
   },
   playroom: {
@@ -97,6 +106,10 @@ export const ROOMS: Record<RoomId, RoomDefinition> = {
     bounds: ROOM_BOUNDS,
     placementArea: PLACEMENT_AREA,
     spawn: { x: 300, y: 586 },
+    fixtures: [
+      { id: 'ball', x: 1032, y: 584 },
+      { id: 'cushion', x: 916, y: 574 },
+    ],
     doors: [BACK_TO_LIVING],
   },
 };

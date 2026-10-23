@@ -5,7 +5,15 @@ import { getRoom, ROOMS, type RoomDefinition } from '@/game/catalog/rooms';
 import { TALENTS, type TalentDefinition, type TalentId } from '@/game/catalog/talents';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
-import type { Needs, PetId, RoomId } from '@/game/types';
+import type {
+  CareNeed,
+  HomeFixture,
+  Needs,
+  PetId,
+  PlacedFurniture,
+  Point,
+  RoomId,
+} from '@/game/types';
 import { normalizeLook } from '@/systems/appearance';
 import { isReducedMotion } from '@/systems/motion';
 import { audio } from '@/systems/audio';
@@ -13,9 +21,21 @@ import {
   GAME_EVENTS,
   gameEvents,
   type CareFeedback,
+  type GuideTargetState,
   type HudState,
   type PlacementState,
 } from '@/systems/events';
+import {
+  applyHomeInteraction,
+  guideTarget,
+  homeGuideState,
+  interactionForFixture,
+  interactionForItem,
+  nextGuideTask,
+  wishForNeeds,
+  type HomeGuideTask,
+  type HomeInteraction,
+} from '@/systems/home';
 import {
   CARE_EFFECTS,
   applyCare,
@@ -30,6 +50,7 @@ import { canPlace, clampCenter, createFurnitureUid, footprintOf } from '@/system
 import { save } from '@/systems/save';
 import { speak } from '@/systems/speech';
 import { CharacterView } from '@/ui/CharacterView';
+import { HomeFixtures } from '@/ui/HomeFixtures';
 import { InventoryPanel, type InventoryEntry } from '@/ui/InventoryPanel';
 import { PetPanel, type PetPanelMode } from '@/ui/PetPanel';
 import { PetView } from '@/ui/PetView';
@@ -41,10 +62,9 @@ const PET_FOLLOW_SPEED = 6;
 const AUTOSAVE_INTERVAL = 10_000;
 const HUD_UPDATE_INTERVAL = 200;
 const ACTION_COOLDOWN = 650;
-
-const BOWL = { x: 236, y: 586 };
-const BALL = { x: 1032, y: 584 };
-const CUSHION = { x: 916, y: 574 };
+const FURNITURE_COOLDOWN = 1200;
+const AMBIENT_IDLE_DELAY = 14_000;
+const GUIDE_HINT_DURATION = 5_200;
 
 export class HomeScene extends Phaser.Scene {
   private character!: CharacterView;
@@ -67,17 +87,20 @@ export class HomeScene extends Phaser.Scene {
     sleep: 0,
     treat: 0,
   };
-  private bowl?: Phaser.GameObjects.Container;
-  private ball?: Phaser.GameObjects.Container;
-  private cushion?: Phaser.GameObjects.Container;
+  private fixtures?: HomeFixtures;
   private tutorialBanner?: Phaser.GameObjects.Container;
   private tutorialRing?: Phaser.GameObjects.Arc;
   private tutorialArrow?: Phaser.GameObjects.Container;
   private moodHeartsTimer?: Phaser.Time.TimerEvent;
+  private ambientTimer?: Phaser.Time.TimerEvent;
+  private guideHint?: Phaser.GameObjects.Container;
   private room: RoomDefinition = ROOMS.living;
   private roomBackground?: Phaser.GameObjects.Image;
   private readonly doorViews: Phaser.GameObjects.Container[] = [];
   private readonly furnitureViews = new Map<string, Phaser.GameObjects.Container>();
+  private readonly interactiveFurniture = new Set<string>();
+  private readonly roomPositions = new Map<RoomId, Point>();
+  private readonly seenFurnitureHints = new Set<string>();
   private placementMode = false;
   private selectedUid: string | null = null;
   private selectedItemId: string | null = null;
@@ -89,6 +112,11 @@ export class HomeScene extends Phaser.Scene {
   private speechBubble?: Phaser.GameObjects.Container;
   private petPanel?: PetPanel;
   private lastMood: Mood = 'okay';
+  private petBusy = false;
+  private petBusyToken = 0;
+  private petWalkTween?: Phaser.Tweens.Tween;
+  private furnitureReadyAt = 0;
+  private transitioning = false;
 
   constructor() {
     super(SCENE_KEYS.HOME);
@@ -115,15 +143,21 @@ export class HomeScene extends Phaser.Scene {
     this.petPanel = undefined;
     this.room = getRoom('living');
     this.furnitureViews.clear();
+    this.interactiveFurniture.clear();
+    this.roomPositions.clear();
+    this.seenFurnitureHints.clear();
+    this.petBusy = false;
+    this.petBusyToken = 0;
+    this.petWalkTween = undefined;
+    this.furnitureReadyAt = 0;
+    this.transitioning = false;
+    this.guideHint = undefined;
 
     this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(0);
     this.createFloorTrigger();
     this.createDoors();
     this.createFurnitureViews();
-
-    this.bowl = this.createBowl();
-    this.ball = this.createBall();
-    this.cushion = this.createCushion();
+    this.fixtures = this.createFixtures();
 
     this.character = new CharacterView(
       this,
@@ -150,6 +184,7 @@ export class HomeScene extends Phaser.Scene {
       Phaser.Geom.Ellipse.Contains,
     );
     this.petView.on('pointerdown', () => this.handleCare('pet'));
+    this.petView.on('wish', this.handleWish, this);
 
     this.setupInput();
     this.setupEvents();
@@ -157,12 +192,13 @@ export class HomeScene extends Phaser.Scene {
     if (save.tutorialDone) {
       this.createSpeechBubble(pet.name);
       this.showMovementHint();
+      this.time.delayedCall(GUIDE_HINT_DURATION, () => this.maybeShowGuideHint(0));
     } else {
       this.createTutorial();
     }
 
     this.lastMood = moodOf(this.needs);
-    this.updateCareObjects();
+    this.startAmbient();
     this.scene.launch(SCENE_KEYS.HUD);
     this.refreshPetMood();
     this.emitHudState();
@@ -201,6 +237,63 @@ export class HomeScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
   }
 
+  private createFixtures(): HomeFixtures {
+    return new HomeFixtures(this, this.room.fixtures, (fixture) =>
+      this.handleFixtureActivate(fixture),
+    );
+  }
+
+  private handleFixtureActivate(fixture: HomeFixture): void {
+    const view = this.fixtures?.get(fixture.id);
+    if (!view) {
+      return;
+    }
+    this.handleCare(interactionForFixture(fixture.id), view);
+  }
+
+  private handleWish(need: CareNeed): void {
+    const wish = wishForNeeds(this.needs);
+    if (!wish || wish.need !== need) {
+      return;
+    }
+    this.handleCare(wish.action);
+  }
+
+  private startAmbient(): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    this.ambientTimer = this.time.addEvent({
+      delay: AMBIENT_IDLE_DELAY,
+      loop: true,
+      callback: () => this.playAmbientIdle(),
+    });
+  }
+
+  private playAmbientIdle(): void {
+    if (
+      !save.pet ||
+      this.placementMode ||
+      this.petBusy ||
+      this.petPanel ||
+      this.transitioning ||
+      moodOf(this.needs) === 'sad'
+    ) {
+      return;
+    }
+
+    const animations = [
+      () => this.petView.playHop(),
+      () => this.petView.playBow(),
+      () => this.petView.playSpin(),
+      () => this.petView.playNod(),
+    ];
+    Phaser.Utils.Array.GetRandom(animations)();
+    if (Phaser.Math.Between(0, 1) === 1) {
+      this.time.delayedCall(180, () => audio.play(getPet(this.petId).voice));
+    }
+  }
+
   private setupInput(): void {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as
@@ -236,10 +329,14 @@ export class HomeScene extends Phaser.Scene {
     this.floorZone = zone;
 
     zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.transitioning) {
+        return;
+      }
       if (this.placementMode) {
         this.handlePlacementPointer(pointer);
         return;
       }
+      this.cancelPetInteraction();
       this.moveTarget = new Phaser.Math.Vector2(
         Phaser.Math.Clamp(pointer.worldX, this.room.bounds.left, this.room.bounds.right),
         Phaser.Math.Clamp(pointer.worldY, this.room.bounds.top, this.room.bounds.bottom),
@@ -248,7 +345,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private updateMovement(seconds: number): void {
-    if (this.placementMode) {
+    if (this.placementMode || this.transitioning) {
       this.character.setWalking(false);
       return;
     }
@@ -258,6 +355,7 @@ export class HomeScene extends Phaser.Scene {
     let moving = false;
 
     if (direction.lengthSq() > 0) {
+      this.cancelPetInteraction();
       this.moveTarget = null;
       this.character.x = Phaser.Math.Clamp(
         this.character.x + direction.x * MOVE_SPEED * seconds,
@@ -297,20 +395,22 @@ export class HomeScene extends Phaser.Scene {
     this.character.setWalking(moving);
     this.character.setDepth(Math.round(this.character.y));
 
-    const desiredX = Phaser.Math.Clamp(
-      this.character.x + (this.facingRight ? -PET_FOLLOW_GAP : PET_FOLLOW_GAP),
-      bounds.left + 40,
-      bounds.right - 40,
-    );
-    const desiredY = Phaser.Math.Clamp(this.character.y - 8, bounds.top + 6, bounds.bottom);
-    const follow = 1 - Math.exp(-PET_FOLLOW_SPEED * seconds);
-    const petDx = desiredX - this.petView.x;
-    this.petView.x = Phaser.Math.Linear(this.petView.x, desiredX, follow);
-    this.petView.y = Phaser.Math.Linear(this.petView.y, desiredY, follow);
+    if (!this.petBusy) {
+      const desiredX = Phaser.Math.Clamp(
+        this.character.x + (this.facingRight ? -PET_FOLLOW_GAP : PET_FOLLOW_GAP),
+        bounds.left + 40,
+        bounds.right - 40,
+      );
+      const desiredY = Phaser.Math.Clamp(this.character.y - 8, bounds.top + 6, bounds.bottom);
+      const follow = 1 - Math.exp(-PET_FOLLOW_SPEED * seconds);
+      const petDx = desiredX - this.petView.x;
+      this.petView.x = Phaser.Math.Linear(this.petView.x, desiredX, follow);
+      this.petView.y = Phaser.Math.Linear(this.petView.y, desiredY, follow);
 
-    if (Math.abs(petDx) > 2) {
-      this.petFacingRight = petDx > 0;
-      this.petView.setFacingRight(this.petFacingRight);
+      if (Math.abs(petDx) > 2) {
+        this.petFacingRight = petDx > 0;
+        this.petView.setFacingRight(this.petFacingRight);
+      }
     }
     this.petView.setDepth(Math.round(this.petView.y));
   }
@@ -332,8 +432,11 @@ export class HomeScene extends Phaser.Scene {
     return direction.normalize();
   }
 
-  private handleCare(action: CareAction): void {
+  private handleCare(action: CareAction, source?: Phaser.GameObjects.Container): void {
     if (!save.pet || this.placementMode) {
+      return;
+    }
+    if (source && this.petBusy) {
       return;
     }
 
@@ -344,6 +447,15 @@ export class HomeScene extends Phaser.Scene {
     this.actionReadyAt[action] = now + ACTION_COOLDOWN;
     audio.unlock();
 
+    if (source) {
+      this.walkPetTo(source.x, source.y, () => this.performCare(action, source));
+      return;
+    }
+
+    this.performCare(action);
+  }
+
+  private performCare(action: CareAction, source?: Phaser.GameObjects.Container): void {
     let consumedTreat: string | null = null;
     if (action === 'treat') {
       consumedTreat = firstTreatId(save);
@@ -363,12 +475,15 @@ export class HomeScene extends Phaser.Scene {
     this.needs = result.needs;
     save.updateNeeds(this.needs);
 
-    this.playCareAnimation(action);
+    this.playCareAnimation(action, source);
     this.refreshPetMood();
     this.emitHudState();
 
     if (action === 'feed') {
       this.completeTutorial();
+    }
+    if (action === 'play') {
+      this.markGuidePlayed();
     }
     if (consumedTreat) {
       const treat = getItem(consumedTreat);
@@ -387,43 +502,290 @@ export class HomeScene extends Phaser.Scene {
     gameEvents.emit(GAME_EVENTS.CARE_FEEDBACK, feedback);
   }
 
-  private playCareAnimation(action: CareAction): void {
+  private playCareAnimation(action: CareAction, source?: Phaser.GameObjects.Container): void {
     switch (action) {
       case 'feed':
-      case 'treat':
+      case 'treat': {
         this.petView.playNod();
-        if (this.bowl?.visible) {
-          this.wobble(this.bowl);
-          this.spawnFood();
+        const bowl = source ?? this.fixtures?.get('bowl');
+        if (bowl) {
+          this.wobble(bowl);
+          this.spawnFood(bowl);
         }
         audio.play('eat');
         this.time.delayedCall(220, () => audio.play(getPet(this.petId).voice));
         break;
-      case 'play':
+      }
+      case 'play': {
         this.petView.playJoy();
-        if (this.ball?.visible) {
-          this.bounce(this.ball);
+        const ball = source ?? this.fixtures?.get('ball');
+        if (ball) {
+          this.bounce(ball);
         }
         audio.play('play');
         this.time.delayedCall(180, () => audio.play(getPet(this.petId).voice));
         break;
-      case 'pet':
+      }
+      case 'pet': {
         this.petView.playHop();
-        if (this.cushion?.visible) {
-          this.wobble(this.cushion);
+        const cushion = source ?? this.fixtures?.get('cushion');
+        if (cushion) {
+          this.wobble(cushion);
         }
         audio.play('love');
         audio.play(getPet(this.petId).voice);
         break;
-      case 'sleep':
+      }
+      case 'sleep': {
         this.petView.playSleep();
-        if (this.cushion?.visible) {
-          this.wobble(this.cushion);
+        const cushion = source ?? this.fixtures?.get('cushion');
+        if (cushion) {
+          this.wobble(cushion);
         }
         this.spawnSleepZ();
         audio.play('sleep');
         break;
+      }
     }
+  }
+
+  private walkPetTo(x: number, y: number, onArrive: () => void): void {
+    if (this.petBusy) {
+      return;
+    }
+
+    const bounds = this.room.bounds;
+    const side = this.petView.x <= x ? -1 : 1;
+    const standX = Phaser.Math.Clamp(x + side * 86, bounds.left + 40, bounds.right - 40);
+    const standY = Phaser.Math.Clamp(y + 6, bounds.top, bounds.bottom);
+    this.petBusy = true;
+    const token = ++this.petBusyToken;
+    this.petFacingRight = x >= standX;
+    this.petView.setFacingRight(this.petFacingRight);
+
+    if (isReducedMotion()) {
+      this.petView.setPosition(standX, standY);
+      this.petView.setDepth(Math.round(standY));
+      this.petBusy = false;
+      onArrive();
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(this.petView.x, this.petView.y, standX, standY);
+    this.petWalkTween = this.tweens.add({
+      targets: this.petView,
+      x: standX,
+      y: standY,
+      duration: Phaser.Math.Clamp(distance * 2.4, 320, 900),
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.petWalkTween = undefined;
+        this.petView.setDepth(Math.round(this.petView.y));
+        onArrive();
+        this.time.delayedCall(1500, () => {
+          if (token === this.petBusyToken) {
+            this.petBusy = false;
+          }
+        });
+      },
+    });
+  }
+
+  private cancelPetInteraction(): void {
+    this.petBusyToken += 1;
+    this.petWalkTween?.stop();
+    this.petWalkTween = undefined;
+    this.petBusy = false;
+  }
+
+  private handleFurnitureActivate(placed: PlacedFurniture): void {
+    if (!save.pet || this.placementMode || this.petBusy) {
+      return;
+    }
+
+    const interaction = interactionForItem(placed.itemId);
+    if (!interaction) {
+      return;
+    }
+
+    const now = this.time.now;
+    if (now < this.furnitureReadyAt) {
+      return;
+    }
+    this.furnitureReadyAt = now + FURNITURE_COOLDOWN;
+    audio.unlock();
+    this.walkPetTo(placed.x, placed.y, () => this.performFurnitureInteraction(interaction));
+  }
+
+  private performFurnitureInteraction(interaction: HomeInteraction): void {
+    const result = applyHomeInteraction(this.needs, interaction);
+    if (result.gained > 0) {
+      this.needs = result.needs;
+      save.updateNeeds(this.needs);
+    }
+
+    this.playFurnitureReaction(interaction.kind);
+
+    if (interaction.kind === 'play') {
+      this.markGuidePlayed();
+    }
+
+    if (result.gained > 0) {
+      this.showPetMessage(text.home.interact.gain(interaction.need, result.gained));
+    } else {
+      const fullMessage = interaction.kind === 'sleep' ? text.care.full.sleep : text.care.full.play;
+      this.showPetMessage(fullMessage);
+    }
+
+    this.refreshPetMood();
+    this.emitHudState();
+
+    const feedback: CareFeedback = {
+      action:
+        interaction.kind === 'sleep' ? 'sleep' : interaction.kind === 'cuddle' ? 'pet' : 'play',
+      hearts: 0,
+      need: interaction.need,
+    };
+    gameEvents.emit(GAME_EVENTS.CARE_FEEDBACK, feedback);
+  }
+
+  private playFurnitureReaction(kind: HomeInteraction['kind']): void {
+    switch (kind) {
+      case 'play':
+        this.petView.playJoy();
+        audio.play('play');
+        this.time.delayedCall(180, () => audio.play(getPet(this.petId).voice));
+        break;
+      case 'sleep':
+        this.petView.playSleep();
+        this.spawnSleepZ();
+        audio.play('sleep');
+        break;
+      case 'cuddle':
+        this.petView.playNod();
+        audio.play('love');
+        audio.play(getPet(this.petId).voice);
+        break;
+    }
+  }
+
+  private markGuidePlayed(): void {
+    save.markHomeGuide('played');
+    this.time.delayedCall(900, () => this.maybeShowGuideHint(0));
+  }
+
+  private markGuideDecorated(): void {
+    save.markHomeGuide('decorated');
+  }
+
+  private maybeShowGuideHint(delay = 500): void {
+    this.time.delayedCall(delay, () => {
+      if (
+        !this.scene.isActive() ||
+        this.placementMode ||
+        this.petPanel ||
+        this.transitioning ||
+        this.guideHint
+      ) {
+        return;
+      }
+
+      const task = nextGuideTask(homeGuideState(save.tutorialDone, save.homeGuide));
+      if (!task || task === 'feed') {
+        return;
+      }
+      this.showGuideHint(task);
+    });
+  }
+
+  private showGuideHint(task: HomeGuideTask): void {
+    if (task === 'feed') {
+      return;
+    }
+
+    const info =
+      task === 'play'
+        ? { title: text.home.guide.play, subtitle: text.home.guide.playHint, icon: 'icon-joy' }
+        : task === 'decorate'
+          ? {
+              title: text.home.guide.decorate,
+              subtitle: text.home.guide.decorateHint,
+              icon: 'icon-paint',
+            }
+          : { title: text.home.guide.town, subtitle: text.home.guide.townHint, icon: 'icon-shop' };
+
+    this.movementHint?.destroy(true);
+    this.movementHint = undefined;
+    this.guideHint?.destroy(true);
+
+    const width = 610;
+    const height = 86;
+    const hint = this.add.container(GAME_WIDTH / 2, 152).setDepth(955);
+    this.guideHint = hint;
+
+    const background = this.add.graphics();
+    background.fillStyle(COLORS.panel, 0.96);
+    background.fillRoundedRect(-width / 2, -height / 2, width, height, 26);
+    background.lineStyle(4, COLORS.teal, 0.8);
+    background.strokeRoundedRect(-width / 2, -height / 2, width, height, 26);
+
+    const icon = this.add.image(-width / 2 + 52, -13, info.icon).setDisplaySize(42, 42);
+    const title = this.add
+      .text(-width / 2 + 90, -22, info.title, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '25px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0.5);
+    const subtitle = this.add
+      .text(-width / 2 + 90, 14, info.subtitle, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '20px',
+        color: COLORS.textMuted,
+      })
+      .setOrigin(0, 0.5);
+
+    hint.add([background, icon, title, subtitle]);
+    gameEvents.emit(GAME_EVENTS.GUIDE_TARGET, {
+      target: guideTarget(task),
+    } satisfies GuideTargetState);
+
+    if (isReducedMotion()) {
+      this.time.delayedCall(GUIDE_HINT_DURATION, () => {
+        hint.destroy(true);
+        if (this.guideHint === hint) {
+          this.guideHint = undefined;
+        }
+      });
+      return;
+    }
+
+    hint.setAlpha(0).setScale(0.96);
+    this.tweens.add({
+      targets: hint,
+      alpha: 1,
+      scale: 1,
+      duration: 260,
+      ease: 'Back.easeOut',
+    });
+    this.tweens.add({
+      targets: hint,
+      alpha: 0,
+      duration: 400,
+      delay: GUIDE_HINT_DURATION,
+      onComplete: () => {
+        hint.destroy(true);
+        if (this.guideHint === hint) {
+          this.guideHint = undefined;
+        }
+      },
+    });
+  }
+
+  private destroyGuideHint(): void {
+    this.guideHint?.destroy(true);
+    this.guideHint = undefined;
   }
 
   private refreshPetMood(): void {
@@ -481,6 +843,8 @@ export class HomeScene extends Phaser.Scene {
     if (this.placementMode) {
       this.exitPlacement();
     }
+    save.markHomeGuide('town');
+    this.cancelPetInteraction();
     this.persistNeeds();
     this.scene.stop(SCENE_KEYS.HUD);
     this.scene.start(SCENE_KEYS.TOWN);
@@ -490,6 +854,7 @@ export class HomeScene extends Phaser.Scene {
     if (this.placementMode) {
       this.exitPlacement();
     }
+    this.cancelPetInteraction();
     this.persistNeeds();
     this.scene.stop(SCENE_KEYS.HUD);
     this.scene.start(SCENE_KEYS.CHARACTER, { mode: 'edit' });
@@ -502,6 +867,8 @@ export class HomeScene extends Phaser.Scene {
     if (this.placementMode) {
       this.exitPlacement();
     }
+    this.cancelPetInteraction();
+    this.destroyGuideHint();
     this.persistNeeds();
     this.scene.stop(SCENE_KEYS.HUD);
     const unlockedTalentIds = new Set<TalentId>(
@@ -648,12 +1015,14 @@ export class HomeScene extends Phaser.Scene {
     if (relaunchHud && !this.scene.isActive(SCENE_KEYS.HUD)) {
       this.scene.launch(SCENE_KEYS.HUD);
     }
+    this.maybeShowGuideHint(500);
   }
 
   private switchPet(uid: string): void {
     if (uid === save.activePetId) {
       return;
     }
+    this.cancelPetInteraction();
     this.persistNeeds();
     if (!save.setActivePet(uid)) {
       return;
@@ -692,8 +1061,18 @@ export class HomeScene extends Phaser.Scene {
   private handleShutdown(): void {
     this.persistNeeds();
     this.moodHeartsTimer?.remove();
+    this.ambientTimer?.remove();
+    this.ambientTimer = undefined;
+    this.cancelPetInteraction();
+    this.destroyGuideHint();
+    this.fixtures?.destroy();
+    this.fixtures = undefined;
     this.furnitureViews.clear();
+    this.interactiveFurniture.clear();
+    this.roomPositions.clear();
+    this.seenFurnitureHints.clear();
     this.doorViews.length = 0;
+    this.petView.off('wish', this.handleWish, this);
     gameEvents.off(GAME_EVENTS.CARE_REQUESTED, this.handleCare, this);
     gameEvents.off(GAME_EVENTS.MENU_REQUESTED, this.returnToMenu, this);
     gameEvents.off(GAME_EVENTS.TOWN_REQUESTED, this.goToTown, this);
@@ -738,7 +1117,7 @@ export class HomeScene extends Phaser.Scene {
       container.add([background, icon, label]);
       container.setSize(208, 80);
       container.setInteractive(
-        new Phaser.Geom.Rectangle(0, 0, 208, 80),
+        new Phaser.Geom.Rectangle(-104, -40, 208, 80),
         Phaser.Geom.Rectangle.Contains,
       );
       container.on('pointerup', () => this.switchRoom(door.target));
@@ -754,7 +1133,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private switchRoom(target: RoomId): void {
-    if (target === this.room.id) {
+    if (target === this.room.id || this.transitioning) {
       return;
     }
 
@@ -762,6 +1141,32 @@ export class HomeScene extends Phaser.Scene {
       this.exitPlacement();
     }
 
+    this.cancelPetInteraction();
+    this.destroyGuideHint();
+    this.roomPositions.set(this.room.id, { x: this.character.x, y: this.character.y });
+    this.transitioning = true;
+    this.input.enabled = false;
+
+    const apply = (): void => {
+      this.applyRoom(target);
+      this.input.enabled = true;
+      this.transitioning = false;
+      if (!isReducedMotion()) {
+        this.cameras.main.fadeIn(200, 255, 246, 229);
+      }
+      this.maybeShowGuideHint(700);
+    };
+
+    if (isReducedMotion()) {
+      apply();
+      return;
+    }
+
+    this.cameras.main.fadeOut(140, 255, 246, 229);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, apply);
+  }
+
+  private applyRoom(target: RoomId): void {
     this.room = getRoom(target);
     this.roomBackground?.destroy();
     this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(0);
@@ -772,26 +1177,28 @@ export class HomeScene extends Phaser.Scene {
       view.destroy(true);
     }
     this.furnitureViews.clear();
+    this.interactiveFurniture.clear();
     this.createFurnitureViews();
+
+    this.fixtures?.destroy();
+    this.fixtures = this.createFixtures();
     this.createFloorTrigger();
 
     this.moveTarget = null;
-    const spawn = this.room.spawn;
-    this.character.setPosition(spawn.x, spawn.y);
-    this.character.setDepth(spawn.y);
-    this.petView.setPosition(spawn.x + 150, spawn.y);
-    this.petView.setDepth(spawn.y + 1);
-    this.updateCareObjects();
-    this.cameras.main.flash(180, 255, 255, 255);
-  }
-
-  private updateCareObjects(): void {
-    const inLiving = this.room.id === 'living';
-    this.bowl?.setVisible(inLiving || this.room.id === 'kitchen');
-    this.ball?.setVisible(inLiving || this.room.id === 'playroom');
-    this.cushion?.setVisible(inLiving || this.room.id === 'bedroom' || this.room.id === 'playroom');
-    this.tutorialRing?.setVisible(inLiving);
-    this.tutorialArrow?.setVisible(inLiving);
+    const position = this.roomPositions.get(target) ?? this.room.spawn;
+    this.character.setPosition(position.x, position.y);
+    this.character.setDepth(position.y);
+    const petX = Phaser.Math.Clamp(
+      position.x + 150,
+      this.room.bounds.left + 40,
+      this.room.bounds.right - 40,
+    );
+    this.petView.setPosition(petX, position.y);
+    this.petView.setDepth(position.y + 1);
+    this.petFacingRight = true;
+    this.petView.setFacingRight(true);
+    this.tutorialRing?.setVisible(target === 'living');
+    this.tutorialArrow?.setVisible(target === 'living');
   }
 
   private createFurnitureViews(): void {
@@ -802,19 +1209,17 @@ export class HomeScene extends Phaser.Scene {
     }
   }
 
-  private createFurnitureView(placed: {
-    uid: string;
-    itemId: string;
-    room: RoomId;
-    x: number;
-    y: number;
-  }): Phaser.GameObjects.Container | null {
+  private createFurnitureView(placed: PlacedFurniture): Phaser.GameObjects.Container | null {
     const item = getItem(placed.itemId);
     if (!item) {
       return null;
     }
 
     const footprint = footprintOf(item);
+    const interactive = interactionForItem(placed.itemId) !== null;
+    if (interactive) {
+      this.interactiveFurniture.add(placed.uid);
+    }
     const view = this.add.container(placed.x, placed.y).setDepth(Math.round(placed.y));
     const shadow = this.add.ellipse(
       0,
@@ -833,11 +1238,36 @@ export class HomeScene extends Phaser.Scene {
     let originX = placed.x;
     let originY = placed.y;
 
-    view.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, footprint.width, footprint.height),
-      Phaser.Geom.Rectangle.Contains,
+    if (this.placementMode || interactive) {
+      view.setInteractive(
+        new Phaser.Geom.Rectangle(
+          -footprint.width / 2,
+          -footprint.height / 2,
+          footprint.width,
+          footprint.height,
+        ),
+        Phaser.Geom.Rectangle.Contains,
+      );
+    }
+    view.on(
+      'pointerdown',
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        if (this.placementMode) {
+          this.selectFurniture(placed.uid);
+          return;
+        }
+        if (!interactive) {
+          return;
+        }
+        event.stopPropagation();
+        this.handleFurnitureActivate(placed);
+      },
     );
-    view.on('pointerdown', () => this.selectFurniture(placed.uid));
     view.on('dragstart', () => {
       if (!this.placementMode) {
         return;
@@ -881,6 +1311,7 @@ export class HomeScene extends Phaser.Scene {
         originX = snapped.x;
         originY = snapped.y;
         save.moveFurniture(placed.uid, snapped.x, snapped.y);
+        this.markGuideDecorated();
       } else {
         view.setPosition(originX, originY);
         view.setDepth(Math.round(originY));
@@ -891,8 +1322,6 @@ export class HomeScene extends Phaser.Scene {
 
     if (this.placementMode) {
       this.input.setDraggable(view, true);
-    } else {
-      view.disableInteractive();
     }
 
     this.furnitureViews.set(placed.uid, view);
@@ -914,16 +1343,18 @@ export class HomeScene extends Phaser.Scene {
     this.placementMode = true;
     this.moveTarget = null;
     this.character.setWalking(false);
+    this.cancelPetInteraction();
     this.selectedUid = null;
     this.selectedItemId = null;
     this.movementHint?.destroy(true);
     this.movementHint = undefined;
+    this.destroyGuideHint();
     this.speechBubble?.destroy(true);
     this.speechBubble = undefined;
 
     for (const view of this.furnitureViews.values()) {
       view.setInteractive(
-        new Phaser.Geom.Rectangle(0, 0, view.width, view.height),
+        new Phaser.Geom.Rectangle(-view.width / 2, -view.height / 2, view.width, view.height),
         Phaser.Geom.Rectangle.Contains,
       );
       this.input.setDraggable(view, true);
@@ -947,12 +1378,20 @@ export class HomeScene extends Phaser.Scene {
     this.placementHint?.destroy();
     this.placementHint = undefined;
 
-    for (const view of this.furnitureViews.values()) {
+    for (const [uid, view] of this.furnitureViews) {
       this.input.setDraggable(view, false);
-      view.disableInteractive();
+      if (this.interactiveFurniture.has(uid)) {
+        view.setInteractive(
+          new Phaser.Geom.Rectangle(-view.width / 2, -view.height / 2, view.width, view.height),
+          Phaser.Geom.Rectangle.Contains,
+        );
+      } else {
+        view.disableInteractive();
+      }
     }
 
     gameEvents.emit(GAME_EVENTS.PLACEMENT_STATE, { active: false } satisfies PlacementState);
+    this.maybeShowGuideHint(700);
   }
 
   private createPlacementHint(): void {
@@ -1038,9 +1477,11 @@ export class HomeScene extends Phaser.Scene {
     const view = this.furnitureViews.get(placed.uid);
     view?.destroy(true);
     this.furnitureViews.delete(placed.uid);
+    this.interactiveFurniture.delete(placed.uid);
     save.removeFurniture(placed.uid);
     save.addItem(placed.itemId);
     this.selectedUid = null;
+    this.markGuideDecorated();
     audio.play('pop');
     this.refreshInventoryPanel();
   }
@@ -1134,8 +1575,20 @@ export class HomeScene extends Phaser.Scene {
     this.createFurnitureView(placed);
     this.selectedItemId = null;
     this.hideGhost();
+    this.markGuideDecorated();
+    this.maybeShowFurnitureTip(item);
     audio.play('pop');
     this.refreshInventoryPanel();
+  }
+
+  private maybeShowFurnitureTip(item: ItemDefinition): void {
+    if (!interactionForItem(item.id) || this.seenFurnitureHints.has(item.id)) {
+      return;
+    }
+    this.seenFurnitureHints.add(item.id);
+    const message =
+      item.category === 'toy' ? text.home.interact.toyHint : text.home.interact.useHint;
+    this.time.delayedCall(350, () => this.showPlacementToast(message));
   }
 
   private showPlacementToast(message: string): void {
@@ -1165,81 +1618,6 @@ export class HomeScene extends Phaser.Scene {
       ease: 'Quad.easeOut',
       onComplete: () => toast.destroy(),
     });
-  }
-
-  private createBowl(): Phaser.GameObjects.Container {
-    const container = this.add.container(BOWL.x, BOWL.y).setDepth(BOWL.y);
-    const graphics = this.add.graphics();
-
-    graphics.fillStyle(COLORS.ink, 0.14);
-    graphics.fillEllipse(0, -2, 104, 26);
-    graphics.fillStyle(COLORS.teal, 1);
-    graphics.fillRoundedRect(-46, -36, 92, 38, { tl: 12, tr: 12, bl: 20, br: 20 });
-    graphics.fillStyle(COLORS.tealDark, 1);
-    graphics.fillEllipse(0, -36, 92, 26);
-    graphics.fillStyle(0xfff1dd, 1);
-    graphics.fillEllipse(0, -36, 68, 16);
-    graphics.fillStyle(0xe7b782, 1);
-    graphics.fillEllipse(0, -35, 58, 11);
-    graphics.lineStyle(3, COLORS.ink, 0.18);
-    graphics.strokeEllipse(0, -36, 92, 26);
-
-    container.add(graphics);
-    container.setInteractive(
-      new Phaser.Geom.Rectangle(-72, -96, 144, 116),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    container.on('pointerdown', () => this.handleCare('feed'));
-    return container;
-  }
-
-  private createBall(): Phaser.GameObjects.Container {
-    const container = this.add.container(BALL.x, BALL.y).setDepth(BALL.y);
-    const graphics = this.add.graphics();
-
-    graphics.fillStyle(COLORS.ink, 0.14);
-    graphics.fillEllipse(0, -2, 78, 22);
-    graphics.fillStyle(COLORS.accent, 1);
-    graphics.fillCircle(0, -34, 32);
-    graphics.fillStyle(COLORS.primary, 0.9);
-    graphics.fillCircle(-12, -44, 9);
-    graphics.fillCircle(14, -24, 7);
-    graphics.lineStyle(4, 0xffffff, 0.7);
-    graphics.strokeCircle(0, -34, 32);
-    graphics.lineStyle(3, COLORS.accentDark, 0.6);
-    graphics.beginPath();
-    graphics.arc(0, -34, 19, Math.PI * 1.1, Math.PI * 1.9);
-    graphics.strokePath();
-
-    container.add(graphics);
-    container.setInteractive(
-      new Phaser.Geom.Rectangle(-64, -94, 128, 114),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    container.on('pointerdown', () => this.handleCare('play'));
-    return container;
-  }
-
-  private createCushion(): Phaser.GameObjects.Container {
-    const container = this.add.container(CUSHION.x, CUSHION.y).setDepth(CUSHION.y);
-    const graphics = this.add.graphics();
-
-    graphics.fillStyle(COLORS.ink, 0.14);
-    graphics.fillEllipse(0, -2, 126, 26);
-    graphics.fillStyle(COLORS.lavender, 1);
-    graphics.fillRoundedRect(-60, -34, 120, 44, 18);
-    graphics.fillStyle(0xdccaf3, 1);
-    graphics.fillRoundedRect(-50, -28, 100, 30, 14);
-    graphics.lineStyle(3, COLORS.ink, 0.16);
-    graphics.strokeRoundedRect(-60, -34, 120, 44, 18);
-
-    container.add(graphics);
-    container.setInteractive(
-      new Phaser.Geom.Rectangle(-84, -92, 168, 114),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    container.on('pointerdown', () => this.handleCare('sleep'));
-    return container;
   }
 
   private createTutorial(): void {
@@ -1283,39 +1661,42 @@ export class HomeScene extends Phaser.Scene {
       });
     }
 
-    this.tutorialRing = this.add
-      .circle(BOWL.x, BOWL.y - 24, 70)
-      .setStrokeStyle(6, COLORS.primary, 0.95)
-      .setDepth(950);
-    if (!isReducedMotion()) {
-      this.tweens.add({
-        targets: this.tutorialRing,
-        scale: 1.18,
-        alpha: 0.35,
-        duration: 760,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
+    const bowl = this.fixtures?.get('bowl');
+    if (bowl) {
+      this.tutorialRing = this.add
+        .circle(bowl.x, bowl.y - 24, 70)
+        .setStrokeStyle(6, COLORS.primary, 0.95)
+        .setDepth(950);
+      if (!isReducedMotion()) {
+        this.tweens.add({
+          targets: this.tutorialRing,
+          scale: 1.18,
+          alpha: 0.35,
+          duration: 760,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+
+      const arrow = this.add.container(bowl.x, bowl.y - 122).setDepth(951);
+      const arrowGraphics = this.add.graphics();
+      arrowGraphics.fillStyle(COLORS.primary, 0.95);
+      arrowGraphics.fillTriangle(-22, -18, 22, -18, 0, 20);
+      arrow.add(arrowGraphics);
+      if (!isReducedMotion()) {
+        this.tweens.add({
+          targets: arrow,
+          y: bowl.y - 132,
+          duration: 620,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+      this.tutorialArrow = arrow;
     }
 
-    const arrow = this.add.container(BOWL.x, BOWL.y - 122).setDepth(951);
-    const arrowGraphics = this.add.graphics();
-    arrowGraphics.fillStyle(COLORS.primary, 0.95);
-    arrowGraphics.fillTriangle(-22, -18, 22, -18, 0, 20);
-    arrow.add(arrowGraphics);
-    if (!isReducedMotion()) {
-      this.tweens.add({
-        targets: arrow,
-        y: BOWL.y - 132,
-        duration: 620,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    }
-
-    this.tutorialArrow = arrow;
     this.tutorialBanner = banner;
   }
 
@@ -1351,6 +1732,7 @@ export class HomeScene extends Phaser.Scene {
     this.tutorialArrow = undefined;
     save.setTutorialDone(true);
     this.time.delayedCall(700, () => this.showMovementHint());
+    this.time.delayedCall(GUIDE_HINT_DURATION, () => this.maybeShowGuideHint(0));
   }
 
   private showMovementHint(): void {
@@ -1493,16 +1875,16 @@ export class HomeScene extends Phaser.Scene {
     }
   }
 
-  private spawnFood(): void {
-    if (!this.bowl || isReducedMotion()) {
+  private spawnFood(bowl: Phaser.GameObjects.Container): void {
+    if (isReducedMotion()) {
       return;
     }
 
     for (let index = 0; index < 5; index += 1) {
       const bit = this.add
         .circle(
-          this.bowl.x + Phaser.Math.Between(-22, 22),
-          this.bowl.y - 52,
+          bowl.x + Phaser.Math.Between(-22, 22),
+          bowl.y - 52,
           Phaser.Math.Between(4, 7),
           0xe7b782,
           1,

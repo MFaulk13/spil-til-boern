@@ -7,6 +7,7 @@ import {
   GAME_EVENTS,
   gameEvents,
   type CareFeedback,
+  type GuideTargetState,
   type HudState,
   type PlacementState,
 } from '@/systems/events';
@@ -43,10 +44,11 @@ export class HudScene extends Phaser.Scene {
   private heartsText?: Phaser.GameObjects.Text;
   private lastHearts?: number;
   private decorButton?: Button;
+  private townButton?: Button;
   private treatButton?: Button;
   private treatCount = 0;
   private placementActive = false;
-  private readonly careButtons: Button[] = [];
+  private readonly careButtons = new Map<CareAction, Button>();
 
   constructor() {
     super(SCENE_KEYS.HUD);
@@ -61,8 +63,9 @@ export class HudScene extends Phaser.Scene {
 
     this.bars.clear();
     this.lastHearts = undefined;
-    this.careButtons.length = 0;
+    this.careButtons.clear();
     this.decorButton = undefined;
+    this.townButton = undefined;
     this.treatButton = undefined;
     this.treatCount = 0;
     this.placementActive = false;
@@ -88,6 +91,7 @@ export class HudScene extends Phaser.Scene {
     gameEvents.on(GAME_EVENTS.HUD_STATE, this.applyState, this);
     gameEvents.on(GAME_EVENTS.CARE_FEEDBACK, this.handleFeedback, this);
     gameEvents.on(GAME_EVENTS.PLACEMENT_STATE, this.handlePlacementState, this);
+    gameEvents.on(GAME_EVENTS.GUIDE_TARGET, this.handleGuideTarget, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
 
     gameEvents.emit(GAME_EVENTS.HUD_READY);
@@ -206,10 +210,10 @@ export class HudScene extends Phaser.Scene {
         this.treatButton = button;
         button.setEnabled(false);
       }
-      this.careButtons.push(button);
+      this.careButtons.set(item.action, button);
     }
 
-    new Button(this, {
+    this.townButton = new Button(this, {
       x: 1025,
       y: 661,
       label: text.hud.town,
@@ -239,7 +243,7 @@ export class HudScene extends Phaser.Scene {
 
   private handlePlacementState(state: PlacementState): void {
     this.placementActive = state.active;
-    for (const button of this.careButtons) {
+    for (const button of this.careButtons.values()) {
       button.setEnabled(!state.active);
     }
     this.treatButton?.setEnabled(!state.active && this.treatCount > 0);
@@ -309,9 +313,20 @@ export class HudScene extends Phaser.Scene {
     });
   }
 
+  private handleGuideTarget(state: GuideTargetState): void {
+    const button =
+      state.target === 'decor'
+        ? this.decorButton
+        : state.target === 'town'
+          ? this.townButton
+          : this.careButtons.get(state.target);
+    button?.pulse();
+  }
+
   private handleShutdown(): void {
     gameEvents.off(GAME_EVENTS.HUD_STATE, this.applyState, this);
     gameEvents.off(GAME_EVENTS.CARE_FEEDBACK, this.handleFeedback, this);
     gameEvents.off(GAME_EVENTS.PLACEMENT_STATE, this.handlePlacementState, this);
+    gameEvents.off(GAME_EVENTS.GUIDE_TARGET, this.handleGuideTarget, this);
   }
 }

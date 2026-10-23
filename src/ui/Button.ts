@@ -121,6 +121,23 @@ export class Button extends Phaser.GameObjects.Container {
     return this;
   }
 
+  pulse(): void {
+    if (isReducedMotion()) {
+      return;
+    }
+    this.scene.tweens.add({
+      targets: this,
+      scale: 1.08,
+      duration: 130,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.setScale(1);
+      },
+    });
+  }
+
   private handlePointerDown(): void {
     if (!this.enabled) {
       return;

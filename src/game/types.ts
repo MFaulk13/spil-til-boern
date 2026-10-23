@@ -33,6 +33,24 @@ export const ROOM_IDS = ['living', 'bedroom', 'kitchen', 'bathroom', 'playroom']
 
 export type RoomId = (typeof ROOM_IDS)[number];
 
+export const HOME_FIXTURE_IDS = ['bowl', 'ball', 'cushion'] as const;
+
+export type HomeFixtureId = (typeof HOME_FIXTURE_IDS)[number];
+
+export interface HomeFixture {
+  id: HomeFixtureId;
+  x: number;
+  y: number;
+}
+
+export const HOME_GUIDE_KEYS = ['played', 'decorated', 'town'] as const;
+
+export type HomeGuideKey = (typeof HOME_GUIDE_KEYS)[number];
+
+export type HomeGuide = Record<HomeGuideKey, boolean>;
+
+export type GuideTarget = 'feed' | 'play' | 'decor' | 'town';
+
 export const QUIZ_SUBJECTS = [
   'math',
   'danish',
@@ -167,6 +185,7 @@ export interface SaveData {
   };
   flags: {
     tutorialDone: boolean;
+    homeGuide: HomeGuide;
   };
 }
 

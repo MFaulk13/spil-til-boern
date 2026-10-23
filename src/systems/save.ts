@@ -3,11 +3,14 @@ import { createPetUid } from '@/game/catalog/pets';
 import { text } from '@/game/text';
 import {
   clampNeed,
+  HOME_GUIDE_KEYS,
   isPetId,
   isRoomId,
   QUIZ_SUBJECTS,
   type CharacterLook,
   type DeviceSettings,
+  type HomeGuide,
+  type HomeGuideKey,
   type Needs,
   type PetId,
   type PetState,
@@ -55,7 +58,10 @@ export function createDefaultSave(): SaveData {
     purchases: {},
     home: { furniture: [] },
     school: { subjects: {} },
-    flags: { tutorialDone: false },
+    flags: {
+      tutorialDone: false,
+      homeGuide: { played: false, decorated: false, town: false },
+    },
   };
 }
 
@@ -311,6 +317,20 @@ function parseSchool(value: unknown): SaveData['school'] {
   return { subjects };
 }
 
+function parseHomeGuide(value: unknown, tutorialDone: boolean): HomeGuide {
+  if (!isRecord(value)) {
+    return tutorialDone
+      ? { played: true, decorated: true, town: true }
+      : { played: false, decorated: false, town: false };
+  }
+
+  return {
+    played: readBoolean(value.played, false),
+    decorated: readBoolean(value.decorated, false),
+    town: readBoolean(value.town, false),
+  };
+}
+
 export function parseSettings(raw: string | null): DeviceSettings | null {
   if (!raw) {
     return null;
@@ -433,6 +453,8 @@ export function parseSave(raw: string | null): SaveData {
   }
   const purchases = parsePurchases(parsed.purchases, legacyPurchaseCounts);
   seedEquippedWardrobePurchases(purchases, look);
+  const tutorialDone = readBoolean(flags.tutorialDone, fallback.flags.tutorialDone);
+  const homeGuide = parseHomeGuide(flags.homeGuide, tutorialDone);
 
   return {
     version: SAVE_VERSION,
@@ -448,7 +470,8 @@ export function parseSave(raw: string | null): SaveData {
     home: { furniture },
     school,
     flags: {
-      tutorialDone: readBoolean(flags.tutorialDone, fallback.flags.tutorialDone),
+      tutorialDone,
+      homeGuide,
     },
   };
 }
@@ -684,6 +707,18 @@ export class SaveManager {
 
   get tutorialDone(): boolean {
     return this.data.flags.tutorialDone;
+  }
+
+  get homeGuide(): HomeGuide {
+    return { ...this.data.flags.homeGuide };
+  }
+
+  markHomeGuide(key: HomeGuideKey): void {
+    if (!HOME_GUIDE_KEYS.includes(key) || this.data.flags.homeGuide[key]) {
+      return;
+    }
+    this.data.flags.homeGuide[key] = true;
+    this.persist();
   }
 
   schoolProgress(subject: QuizSubject): SchoolProgress {

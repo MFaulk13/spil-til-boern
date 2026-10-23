@@ -5,6 +5,7 @@ import { musicQuestions } from '@/game/text/banks/music';
 import { natureQuestions } from '@/game/text/banks/nature';
 import { religionQuestions } from '@/game/text/banks/religion';
 import { sportQuestions } from '@/game/text/banks/sport';
+import type { CareNeed } from '@/game/types';
 
 export const text = {
   title: 'Gotar',
@@ -242,6 +243,20 @@ export const text = {
     hint: 'Tryk på gulvet for at gå',
     menu: 'Menu',
     comingSoon: 'Kommer snart',
+    guide: {
+      play: 'Leg med mig',
+      playHint: 'Brug Leg, eller tryk på dit legetøj',
+      decorate: 'Indret hjemmet',
+      decorateHint: 'Tryk på Indret, og flyt et møbel',
+      town: 'Tag i byen',
+      townHint: 'Tryk på By, og køb et møbel',
+    },
+    interact: {
+      gain: (need: CareNeed, amount: number) =>
+        `+${amount} ${need === 'energy' ? 'energi' : need === 'joy' ? 'glæde' : 'mad'}`,
+      toyHint: 'Tryk på legetøjet for at lege',
+      useHint: 'Tryk på møblet for at bruge det',
+    },
   },
   hud: {
     menu: 'Menu',
@@ -395,6 +410,8 @@ export const text = {
     bubblesReward: 'Så mange bobler!',
     ducks: 'Ænder',
     ducksReward: 'Anderne siger kvæk!',
+    flowersReward: 'I fandt en fin blomst!',
+    benchReward: 'Dejlig pause på bænken!',
   },
   school: {
     title: 'Skolen',
