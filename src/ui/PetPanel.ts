@@ -1,20 +1,22 @@
 import Phaser from 'phaser';
+import { getItem } from '@/game/catalog/items';
 import { getPet } from '@/game/catalog/pets';
 import { getQuizSubjectInfo } from '@/game/catalog/quiz';
 import { TALENTS, type TalentDefinition, type TalentId } from '@/game/catalog/talents';
 import { text } from '@/game/text';
 import type { PetState } from '@/game/types';
 import { isReducedMotion } from '@/systems/motion';
+import { bondLevelIndex } from '@/systems/pet';
 import { Button } from '@/ui/Button';
 import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
 
 const PANEL_WIDTH = 920;
 const PANEL_HEIGHT = 600;
 const CARD_WIDTH = 264;
-const CARD_HEIGHT = 108;
+const CARD_HEIGHT = 122;
 const PAGE_SIZE = 9;
 const COLUMNS = [-288, 0, 288];
-const ROWS = [-91, 30, 151];
+const ROWS = [-104, 22, 148];
 const TALENT_COLUMNS = [-315, -105, 105, 315];
 const TALENT_ROWS = [-50, 82];
 const TALENT_CARD_WIDTH = 196;
@@ -295,7 +297,7 @@ export class PetPanel extends Phaser.GameObjects.Container {
       : this.scene.add.image(-74, 2, 'icon-paw').setDisplaySize(70, 70);
 
     const name = this.scene.add
-      .text(-14, -18, pet.name, {
+      .text(-14, -30, pet.name, {
         fontFamily: FONT_FAMILY,
         fontSize: '25px',
         color: COLORS.text,
@@ -304,10 +306,34 @@ export class PetPanel extends Phaser.GameObjects.Container {
       .setOrigin(0, 0.5);
 
     const species = this.scene.add
-      .text(-14, 18, definition.label, {
+      .text(-14, -4, definition.label, {
         fontFamily: FONT_FAMILY,
-        fontSize: '20px',
+        fontSize: '19px',
         color: COLORS.textMuted,
+      })
+      .setOrigin(0, 0.5);
+
+    const favoriteTreatId = definition.care.favoriteTreats[0];
+    const favoriteTreat = favoriteTreatId ? getItem(favoriteTreatId) : undefined;
+    const favorite = this.scene.add
+      .text(
+        -14,
+        20,
+        text.petsPanel.favorite(text.care[definition.care.favoriteAction], favoriteTreat?.label),
+        {
+          fontFamily: FONT_FAMILY,
+          fontSize: '14px',
+          color: COLORS.textMuted,
+        },
+      )
+      .setOrigin(0, 0.5);
+
+    const bond = this.scene.add
+      .text(-14, 42, text.petsPanel.bond(text.bond.levels[bondLevelIndex(pet.bond)]), {
+        fontFamily: FONT_FAMILY,
+        fontSize: '14px',
+        color: COLORS.textAccent,
+        fontStyle: 'bold',
       })
       .setOrigin(0, 0.5);
 
@@ -320,7 +346,7 @@ export class PetPanel extends Phaser.GameObjects.Container {
       })
       .setOrigin(1, 0.5);
 
-    card.add([background, image, name, species, status]);
+    card.add([background, image, name, species, favorite, bond, status]);
     card.on('pointerup', () => {
       if (!active) {
         this.onSelect(pet.uid);

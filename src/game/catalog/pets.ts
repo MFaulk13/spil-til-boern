@@ -1,4 +1,5 @@
 import { text } from '@/game/text';
+import type { CareAction, PetCareProfile } from '@/game/care';
 import { createFullNeeds, type EggPattern, type PetId, type PetState } from '@/game/types';
 
 export type PetVoice =
@@ -28,6 +29,19 @@ export interface PetDefinition {
   voice: PetVoice;
   motion: PetMotion;
   adoptionPrice: number;
+  care: PetCareProfile;
+}
+
+function care(
+  decay: readonly [number, number, number],
+  favoriteAction: CareAction,
+  favoriteTreats: readonly string[],
+): PetCareProfile {
+  return {
+    decay: { hunger: decay[0], joy: decay[1], energy: decay[2] },
+    favoriteAction,
+    favoriteTreats,
+  };
 }
 
 export const PETS: readonly PetDefinition[] = [
@@ -41,6 +55,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'bark',
     motion: 'walk',
     adoptionPrice: 35,
+    care: care([1.15, 1.2, 1.0], 'play', ['bone', 'cheese']),
   },
   {
     id: 'cat',
@@ -52,6 +67,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'meow',
     motion: 'walk',
     adoptionPrice: 35,
+    care: care([1.0, 1.15, 1.15], 'pet', ['fish-treat', 'cheese']),
   },
   {
     id: 'rabbit',
@@ -63,6 +79,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'chirp',
     motion: 'hop',
     adoptionPrice: 30,
+    care: care([1.2, 1.0, 0.95], 'play', ['carrot', 'apple']),
   },
   {
     id: 'pig',
@@ -74,6 +91,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'oink',
     motion: 'walk',
     adoptionPrice: 30,
+    care: care([1.25, 1.0, 1.05], 'feed', ['apple', 'watermelon']),
   },
   {
     id: 'chicken',
@@ -85,6 +103,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'cluck',
     motion: 'hop',
     adoptionPrice: 20,
+    care: care([1.1, 1.0, 0.95], 'feed', ['broccoli', 'banana']),
   },
   {
     id: 'hamster',
@@ -96,6 +115,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'squeak',
     motion: 'hop',
     adoptionPrice: 25,
+    care: care([1.1, 1.1, 1.2], 'sleep', ['strawberry', 'carrot']),
   },
   {
     id: 'mouse',
@@ -107,6 +127,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'squeak',
     motion: 'hop',
     adoptionPrice: 20,
+    care: care([1.05, 1.1, 1.15], 'sleep', ['cheese', 'strawberry']),
   },
   {
     id: 'hedgehog',
@@ -118,6 +139,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'chirp',
     motion: 'walk',
     adoptionPrice: 30,
+    care: care([1.1, 1.0, 1.1], 'sleep', ['apple', 'carrot']),
   },
   {
     id: 'duck',
@@ -129,6 +151,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'quack',
     motion: 'walk',
     adoptionPrice: 25,
+    care: care([1.0, 1.1, 0.95], 'play', ['banana', 'broccoli']),
   },
   {
     id: 'parrot',
@@ -140,6 +163,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'tweet',
     motion: 'hop',
     adoptionPrice: 40,
+    care: care([0.95, 1.2, 1.0], 'play', ['banana', 'strawberry']),
   },
   {
     id: 'owl',
@@ -151,6 +175,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'hoot',
     motion: 'hop',
     adoptionPrice: 45,
+    care: care([0.9, 0.95, 1.25], 'sleep', ['fish-treat', 'cheese']),
   },
   {
     id: 'frog',
@@ -162,6 +187,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'ribbit',
     motion: 'hop',
     adoptionPrice: 20,
+    care: care([0.9, 1.05, 0.95], 'play', ['broccoli', 'strawberry']),
   },
   {
     id: 'turtle',
@@ -173,6 +199,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'bubble',
     motion: 'hop',
     adoptionPrice: 40,
+    care: care([0.85, 0.9, 1.0], 'sleep', ['broccoli', 'apple']),
   },
   {
     id: 'axolotl',
@@ -184,6 +211,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'bubble',
     motion: 'float',
     adoptionPrice: 50,
+    care: care([0.95, 1.0, 0.9], 'pet', ['fish-treat', 'strawberry']),
   },
   {
     id: 'fish',
@@ -195,6 +223,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'splash',
     motion: 'swim',
     adoptionPrice: 20,
+    care: care([1.0, 1.0, 0.85], 'feed', ['fish-treat', 'broccoli']),
   },
   {
     id: 'horse',
@@ -206,6 +235,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'neigh',
     motion: 'walk',
     adoptionPrice: 60,
+    care: care([1.25, 1.1, 1.2], 'play', ['apple', 'carrot']),
   },
   {
     id: 'gecko',
@@ -217,6 +247,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'chirp',
     motion: 'walk',
     adoptionPrice: 45,
+    care: care([0.85, 0.95, 0.9], 'sleep', ['broccoli', 'strawberry']),
   },
   {
     id: 'penguin',
@@ -228,6 +259,7 @@ export const PETS: readonly PetDefinition[] = [
     voice: 'chirp',
     motion: 'walk',
     adoptionPrice: 55,
+    care: care([1.1, 1.05, 1.1], 'play', ['fish-treat', 'broccoli']),
   },
 ];
 

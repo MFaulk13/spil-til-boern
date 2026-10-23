@@ -10,8 +10,7 @@ describe('balance', () => {
   it('keeps every care action positive without being overwhelming', () => {
     for (const effect of Object.values(CARE_EFFECTS)) {
       expect(effect.amount).toBeGreaterThan(0);
-      expect(effect.amount).toBeLessThanOrEqual(40);
-      expect(effect.hearts).toBe(0);
+      expect(effect.amount).toBeLessThanOrEqual(30);
     }
   });
 
@@ -63,10 +62,12 @@ describe('balance', () => {
     expect(Math.max(...unlockThresholds)).toBeLessThanOrEqual(12);
   });
 
-  it('keeps needs calm enough that a short break is never punishing', () => {
-    expect(NEED_DECAY_PER_SECOND.hunger * 60).toBeLessThanOrEqual(4);
-    expect(NEED_DECAY_PER_SECOND.joy * 60).toBeLessThanOrEqual(3);
-    expect(NEED_DECAY_PER_SECOND.energy * 60).toBeLessThanOrEqual(2);
+  it('keeps needs moving within a normal play session', () => {
+    for (const decay of Object.values(NEED_DECAY_PER_SECOND)) {
+      const minutesToEmpty = 100 / (decay * 60);
+      expect(minutesToEmpty).toBeGreaterThanOrEqual(15);
+      expect(minutesToEmpty).toBeLessThanOrEqual(35);
+    }
     expect(MOOD_THRESHOLDS.happy).toBeGreaterThan(MOOD_THRESHOLDS.okay);
     expect(MOOD_THRESHOLDS.okay).toBeGreaterThan(0);
   });

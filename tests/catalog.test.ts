@@ -14,12 +14,14 @@ import {
 } from '@/game/catalog/appearance';
 import {
   categoryPurchaseCount,
+  firstTreatId,
   ITEMS,
   getItem,
   isItemUnlocked,
   itemsByCategory,
   treatCount,
 } from '@/game/catalog/items';
+import { CARE_ACTIONS } from '@/game/care';
 import { QUICK_START_EYES, QUICK_START_MOUTHS, wardrobeItemId } from '@/game/catalog/wardrobe';
 import { PETS, createPetState, getPet, pickNewPetName } from '@/game/catalog/pets';
 import { QUIZ_SUBJECT_INFO } from '@/game/catalog/quiz';
@@ -149,6 +151,12 @@ describe('item catalog', () => {
 
   it('counts treats in the inventory', () => {
     expect(treatCount({ inventory: { cookie: 2, apple: 1, rug: 9 } })).toBe(3);
+  });
+
+  it('prefers the pet favourite treat when it is in the inventory', () => {
+    expect(firstTreatId({ inventory: { cookie: 1, bone: 1 } }, ['bone'])).toBe('bone');
+    expect(firstTreatId({ inventory: { cookie: 1 } }, ['bone'])).toBe('cookie');
+    expect(firstTreatId({ inventory: { rug: 1 } }, ['bone'])).toBeNull();
   });
 
   it('covers every shop category', () => {
@@ -318,6 +326,20 @@ describe('pet catalog', () => {
       expect(pet.adoptionPrice).toBeGreaterThanOrEqual(20);
       expect(pet.adoptionPrice).toBeLessThanOrEqual(80);
       expect(getPet(pet.id)).toBe(pet);
+    }
+  });
+
+  it('gives every pet a valid care profile and favourite treat', () => {
+    for (const pet of PETS) {
+      for (const multiplier of Object.values(pet.care.decay)) {
+        expect(multiplier).toBeGreaterThanOrEqual(0.8);
+        expect(multiplier).toBeLessThanOrEqual(1.3);
+      }
+      expect(CARE_ACTIONS).toContain(pet.care.favoriteAction);
+      expect(pet.care.favoriteTreats.length).toBeGreaterThan(0);
+      for (const treatId of pet.care.favoriteTreats) {
+        expect(getItem(treatId)?.category).toBe('treat');
+      }
     }
   });
 

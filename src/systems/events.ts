@@ -26,13 +26,14 @@ export interface HudState {
   needs: Needs;
   hearts: number;
   mood: Mood;
+  bond: number;
+  favoriteAction: CareAction;
   treatCount: number;
   petCount: number;
 }
 
 export interface CareFeedback {
   action: CareAction;
-  hearts: number;
   need: CareNeed;
 }
 

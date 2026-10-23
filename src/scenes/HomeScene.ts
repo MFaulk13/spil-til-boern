@@ -39,10 +39,10 @@ import {
 import {
   CARE_EFFECTS,
   applyCare,
+  bondLevelIndex,
   isNeedLow,
   lowestNeed,
   moodOf,
-  tickNeeds,
   type CareAction,
   type Mood,
 } from '@/systems/pet';
@@ -59,7 +59,6 @@ import { COLORS, FONT_FAMILY } from '@/ui/theme';
 const MOVE_SPEED = 330;
 const PET_FOLLOW_GAP = 118;
 const PET_FOLLOW_SPEED = 6;
-const AUTOSAVE_INTERVAL = 10_000;
 const HUD_UPDATE_INTERVAL = 200;
 const ACTION_COOLDOWN = 650;
 const FURNITURE_COOLDOWN = 1200;
@@ -77,7 +76,6 @@ export class HomeScene extends Phaser.Scene {
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private facingRight = true;
   private petFacingRight = true;
-  private autosaveElapsed = 0;
   private hudElapsed = 0;
   private talentReadyAt = 0;
   private actionReadyAt: Record<CareAction, number> = {
@@ -133,7 +131,6 @@ export class HomeScene extends Phaser.Scene {
     this.petName = pet.name;
     this.needs = { ...pet.needs };
     this.moveTarget = null;
-    this.autosaveElapsed = 0;
     this.hudElapsed = 0;
     this.talentReadyAt = 0;
     this.actionReadyAt = { feed: 0, play: 0, pet: 0, sleep: 0, treat: 0 };
@@ -207,13 +204,9 @@ export class HomeScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     const seconds = Math.min(delta, 120) / 1000;
-
-    this.needs = tickNeeds(this.needs, seconds);
-
-    this.autosaveElapsed += delta;
-    if (this.autosaveElapsed >= AUTOSAVE_INTERVAL) {
-      this.autosaveElapsed = 0;
-      this.persistNeeds();
+    const pet = save.pet;
+    if (pet) {
+      this.needs = pet.needs;
     }
 
     this.hudElapsed += delta;
@@ -456,24 +449,40 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private performCare(action: CareAction, source?: Phaser.GameObjects.Container): void {
+    const pet = save.pet;
+    if (!pet) {
+      return;
+    }
+
     let consumedTreat: string | null = null;
     if (action === 'treat') {
-      consumedTreat = firstTreatId(save);
+      consumedTreat = firstTreatId(save, getPet(this.petId).care.favoriteTreats);
       if (!consumedTreat) {
         audio.play('error');
         this.showPetMessage(text.careNoTreat);
         return;
       }
-      if (applyCare(this.needs, action).gained <= 0) {
-        this.showPetMessage(text.care.full.treat);
-        return;
-      }
+    }
+
+    const result = applyCare(pet.needs, action, {
+      petId: this.petId,
+      treatId: consumedTreat,
+    });
+    if (action === 'treat' && result.gained <= 0) {
+      this.showPetMessage(text.care.full.treat);
+      return;
+    }
+
+    if (consumedTreat) {
       save.consumeItem(consumedTreat);
     }
 
-    const result = applyCare(this.needs, action);
+    const beforeBond = pet.bond;
     this.needs = result.needs;
     save.updateNeeds(this.needs);
+    if (result.bond > 0) {
+      save.addBond(result.bond);
+    }
 
     this.playCareAnimation(action, source);
     this.refreshPetMood();
@@ -485,18 +494,29 @@ export class HomeScene extends Phaser.Scene {
     if (action === 'play') {
       this.markGuidePlayed();
     }
-    if (consumedTreat) {
-      const treat = getItem(consumedTreat);
-      this.showPetMessage(text.care.treatTaste(treat?.label ?? ''));
-    }
 
     if (result.gained <= 0) {
       this.showPetMessage(text.care.full[action]);
+    } else if (result.diminished) {
+      this.showPetMessage(text.care.almostFull[action]);
+    } else if (consumedTreat) {
+      const treat = getItem(consumedTreat);
+      this.showPetMessage(
+        result.favorite
+          ? text.care.favoriteTreat(treat?.label ?? '')
+          : text.care.treatTaste(treat?.label ?? ''),
+      );
+    }
+
+    const afterBond = save.pet?.bond ?? beforeBond;
+    if (bondLevelIndex(afterBond) > bondLevelIndex(beforeBond)) {
+      this.showPetMessage(text.bond.levelUp(text.bond.levels[bondLevelIndex(afterBond)]));
+      audio.play('happy');
+      this.spawnHearts(3, this.petView.x, this.petView.y - 150, 0.8);
     }
 
     const feedback: CareFeedback = {
       action,
-      hearts: 0,
       need: CARE_EFFECTS[action].need,
     };
     gameEvents.emit(GAME_EVENTS.CARE_FEEDBACK, feedback);
@@ -643,7 +663,6 @@ export class HomeScene extends Phaser.Scene {
     const feedback: CareFeedback = {
       action:
         interaction.kind === 'sleep' ? 'sleep' : interaction.kind === 'cuddle' ? 'pet' : 'play',
-      hearts: 0,
       need: interaction.need,
     };
     gameEvents.emit(GAME_EVENTS.CARE_FEEDBACK, feedback);
@@ -812,7 +831,8 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private emitHudState(): void {
-    if (!save.pet) {
+    const pet = save.pet;
+    if (!pet) {
       return;
     }
     const state: HudState = {
@@ -821,6 +841,8 @@ export class HomeScene extends Phaser.Scene {
       needs: { ...this.needs },
       hearts: save.hearts,
       mood: moodOf(this.needs),
+      bond: pet.bond,
+      favoriteAction: getPet(this.petId).care.favoriteAction,
       treatCount: treatCount(save),
       petCount: save.pets.length,
     };
@@ -828,9 +850,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private persistNeeds(): void {
-    if (save.pet) {
-      save.updateNeeds(this.needs);
-    }
+    save.persistNeeds();
   }
 
   private returnToMenu(): void {
@@ -905,10 +925,16 @@ export class HomeScene extends Phaser.Scene {
     this.talentReadyAt = now + 1200;
     audio.unlock();
 
-    const before = this.needs.joy;
-    this.needs = { ...this.needs, joy: Math.min(100, this.needs.joy + 5) };
-    if (this.needs.joy !== before) {
-      save.updateNeeds(this.needs);
+    const pet = save.pet;
+    if (!pet) {
+      return;
+    }
+
+    const before = pet.needs.joy;
+    const needs = { ...pet.needs, joy: Math.min(100, pet.needs.joy + 5) };
+    this.needs = needs;
+    if (needs.joy !== before) {
+      save.updateNeeds(needs);
     }
     this.refreshPetMood();
     this.emitHudState();

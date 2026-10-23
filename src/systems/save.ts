@@ -854,7 +854,7 @@ export class SaveManager {
     this.persist();
   }
 
-  updateNeeds(needs: Needs): void {
+  updateNeeds(needs: Needs, persist = true): void {
     const pet = this.pet;
     if (!pet) {
       return;
@@ -864,6 +864,21 @@ export class SaveManager {
       joy: clampNeed(needs.joy),
       energy: clampNeed(needs.energy),
     };
+    if (persist) {
+      this.persist();
+    }
+  }
+
+  persistNeeds(): void {
+    this.persist();
+  }
+
+  addBond(count: number): void {
+    const pet = this.pet;
+    if (!pet || !Number.isFinite(count) || count <= 0) {
+      return;
+    }
+    pet.bond += Math.floor(count);
     this.persist();
   }
 

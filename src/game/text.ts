@@ -584,6 +584,9 @@ export const text = {
     talentLocked: 'Klaret i skolen',
     talentUse: 'Vis',
     talentEmpty: 'Klaret et fag i skolen for at låse en kunst op',
+    favorite: (action: string, treat?: string) =>
+      treat ? `Elsker: ${action} · ${treat}` : `Elsker: ${action}`,
+    bond: (level: string) => `Bånd: ${level}`,
   },
   talents: {
     count: {
@@ -642,8 +645,15 @@ export const text = {
       sleep: 'Jeg er frisk!',
       treat: 'Jeg er mæt og glad!',
     },
-    heartGain: (count: number) => `+${count}`,
+    almostFull: {
+      feed: 'Jeg er godt mæt',
+      play: 'Jeg er allerede glad',
+      pet: 'Jeg er godt tilfreds',
+      sleep: 'Jeg er frisk',
+      treat: 'Jeg er godt mæt',
+    },
     treatTaste: (name: string) => `Nam! ${name}`,
+    favoriteTreat: (name: string) => `Nam! ${name} er min yndlings!`,
   },
   careNoTreat: 'Køb godbidder i butikken',
   tutorial: {
@@ -659,5 +669,14 @@ export const text = {
     happy: 'Glad',
     okay: 'Okay',
     sad: 'Trist',
+  },
+  moodNeed: {
+    hunger: 'Sulten',
+    joy: 'Keder sig',
+    energy: 'Træt',
+  },
+  bond: {
+    levels: ['Ny ven', 'God ven', 'Bedste ven', 'Hjerteven', 'Sjæleven'],
+    levelUp: (label: string) => `Nyt bånd: ${label}!`,
   },
 } as const;

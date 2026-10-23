@@ -365,9 +365,18 @@ export function isItemUnlocked(item: ItemDefinition, categoryPurchases: number):
   return Number.isFinite(categoryPurchases) && categoryPurchases >= item.requiredPurchases;
 }
 
-export function firstTreatId(store: {
-  readonly inventory: Readonly<Record<string, number>>;
-}): string | null {
+export function firstTreatId(
+  store: {
+    readonly inventory: Readonly<Record<string, number>>;
+  },
+  preferredIds: readonly string[] = [],
+): string | null {
+  for (const itemId of preferredIds) {
+    const item = getItem(itemId);
+    if (item?.category === 'treat' && (store.inventory[item.id] ?? 0) > 0) {
+      return item.id;
+    }
+  }
   for (const item of itemsByCategory('treat')) {
     if ((store.inventory[item.id] ?? 0) > 0) {
       return item.id;

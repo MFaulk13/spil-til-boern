@@ -12,7 +12,7 @@ import {
   type PlacementState,
 } from '@/systems/events';
 import { isReducedMotion } from '@/systems/motion';
-import { moodOf, type CareAction } from '@/systems/pet';
+import { bondLevelIndex, isNeedLow, lowestNeed, moodOf, type CareAction } from '@/systems/pet';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { NeedBar } from '@/ui/NeedBar';
@@ -46,6 +46,7 @@ export class HudScene extends Phaser.Scene {
   private decorButton?: Button;
   private townButton?: Button;
   private treatButton?: Button;
+  private favoriteStar?: Phaser.GameObjects.Image;
   private treatCount = 0;
   private placementActive = false;
   private readonly careButtons = new Map<CareAction, Button>();
@@ -69,6 +70,7 @@ export class HudScene extends Phaser.Scene {
     this.treatButton = undefined;
     this.treatCount = 0;
     this.placementActive = false;
+    this.favoriteStar = undefined;
     this.createTopPanel(pet.id, pet.name);
     this.createBottomPanel();
 
@@ -84,6 +86,8 @@ export class HudScene extends Phaser.Scene {
       needs: pet.needs,
       hearts: save.hearts,
       mood: moodOf(pet.needs),
+      bond: pet.bond,
+      favoriteAction: getPet(pet.id).care.favoriteAction,
       treatCount: 0,
       petCount: save.pets.length,
     });
@@ -239,6 +243,12 @@ export class HudScene extends Phaser.Scene {
       textColor: COLORS.textDark,
       onClick: () => gameEvents.emit(GAME_EVENTS.DECOR_REQUESTED),
     });
+
+    this.favoriteStar = this.add
+      .image(0, 0, 'icon-star')
+      .setDisplaySize(24, 24)
+      .setDepth(5)
+      .setVisible(false);
   }
 
   private handlePlacementState(state: PlacementState): void {
@@ -257,8 +267,18 @@ export class HudScene extends Phaser.Scene {
     }
 
     this.nameText?.setText(state.petName);
-    this.moodText?.setText(text.mood[state.mood]);
+    const lowNeed = isNeedLow(state.needs) ? lowestNeed(state.needs) : null;
+    const moodLabel = lowNeed ? text.moodNeed[lowNeed] : text.mood[state.mood];
+    const bondLabel = text.bond.levels[bondLevelIndex(state.bond)];
+    this.moodText?.setText(`${moodLabel} · ${bondLabel}`);
     this.moodText?.setColor(MOOD_COLORS[state.mood]);
+
+    const favoriteLayout = CARE_LAYOUT.find((item) => item.action === state.favoriteAction);
+    if (this.favoriteStar && favoriteLayout) {
+      this.favoriteStar
+        .setPosition(favoriteLayout.x + favoriteLayout.width / 2 - 20, 625)
+        .setVisible(true);
+    }
 
     if (
       !isReducedMotion() &&
@@ -283,34 +303,6 @@ export class HudScene extends Phaser.Scene {
 
   private handleFeedback(feedback: CareFeedback): void {
     this.bars.get(feedback.need)?.pulse();
-
-    if (feedback.hearts <= 0) {
-      return;
-    }
-
-    const label = this.add
-      .text(1082, 36, text.care.heartGain(feedback.hearts), {
-        fontFamily: FONT_FAMILY,
-        fontSize: '26px',
-        color: COLORS.textAccent,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(10);
-
-    if (isReducedMotion()) {
-      label.destroy();
-      return;
-    }
-
-    this.tweens.add({
-      targets: label,
-      y: 18,
-      alpha: 0,
-      duration: 900,
-      ease: 'Quad.easeOut',
-      onComplete: () => label.destroy(),
-    });
   }
 
   private handleGuideTarget(state: GuideTargetState): void {
