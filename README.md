@@ -3,7 +3,7 @@
 Gotar er et browserbaseret pasningsspil til børn i 3. klasse. Man laver sin
 figur, vælger et æg, udklækker sit kæledyr og passer det. Spillet kan åbnes via
 et link uden download eller installation og virker på tablet og desktop i
-landskabsformat.
+landskabsformat. På delte tablets kan op til seks børn have hver sin profil.
 
 Projektet er bygget med [Phaser 3](https://phaser.io/), Vite og TypeScript.
 
@@ -48,8 +48,8 @@ src/
     constants.ts
     text.ts          # alle danske spiltekster
     types.ts
-  scenes/            # Boot, Preload, Menu, Character, PetSelect, Hatch, Home
-  systems/           # lyd, gem og spil-logik
+  scenes/            # Boot, Preload, Profile, Menu, Character, PetSelect, Hatch, Home
+  systems/           # lyd, profiler, gem og spil-logik
   ui/                # knapper, karaktervisning, kæledyrsvisning, tema
   utils/             # rene hjælpefunktioner
 tests/               # unit tests
@@ -67,8 +67,9 @@ Danske spiltekster ligger i `src/game/text.ts`. Al anden kode er på engelsk.
   og asset-manifestet.
 - **Ny lyd:** lydeffekter og baggrundsmusik genereres med Web Audio i
   `src/systems/audio.ts`.
-- **Fremgang og indstillinger:** brug `save` fra `src/systems/save.ts` – skriv
-  ikke direkte til `localStorage`.
+- **Fremgang og profiler:** brug `save` fra `src/systems/save.ts` – skriv ikke
+  direkte til `localStorage`. Spilledata gemmes pr. profil, mens lyd og
+  bevægelser er fælles for tabletten.
 
 ## Deploy til GitHub Pages
 

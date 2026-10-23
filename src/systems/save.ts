@@ -1,15 +1,20 @@
 import { getItem } from '@/game/catalog/items';
 import { createPetUid } from '@/game/catalog/pets';
+import { text } from '@/game/text';
 import {
   clampNeed,
   isPetId,
   isRoomId,
   QUIZ_SUBJECTS,
   type CharacterLook,
+  type DeviceSettings,
   type Needs,
   type PetId,
   type PetState,
   type PlacedFurniture,
+  type ProfileIndex,
+  type ProfileMeta,
+  type ProfileOverview,
   type QuizSubject,
   type SaveData,
   type SchoolProgress,
@@ -28,16 +33,20 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-const STORAGE_KEY = 'gotar:save';
-const LEGACY_STORAGE_KEY = 'spil:save';
-const SAVE_VERSION = 4;
+const LEGACY_STORAGE_KEYS = ['gotar:save', 'spil:save'] as const;
+const PROFILE_INDEX_KEY = 'gotar:profiles';
+const PROFILE_SAVE_PREFIX = 'gotar:save:';
+const SETTINGS_KEY = 'gotar:settings';
+const SAVE_VERSION = 5;
+const PROFILE_INDEX_VERSION = 1;
+const SETTINGS_VERSION = 1;
 const PROBE_KEY = 'gotar:probe';
 const STARTING_HEARTS = 20;
+export const MAX_PROFILES = 6;
 
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
-    settings: { sound: true, reduceMotion: false },
     player: null,
     pets: [],
     activePetId: null,
@@ -47,6 +56,22 @@ export function createDefaultSave(): SaveData {
     home: { furniture: [] },
     school: { subjects: {} },
     flags: { tutorialDone: false },
+  };
+}
+
+export function createDefaultSettings(): DeviceSettings {
+  return {
+    version: SETTINGS_VERSION,
+    sound: true,
+    reduceMotion: false,
+  };
+}
+
+export function createDefaultProfileIndex(): ProfileIndex {
+  return {
+    version: PROFILE_INDEX_VERSION,
+    activeProfileId: null,
+    profiles: [],
   };
 }
 
@@ -286,14 +311,80 @@ function parseSchool(value: unknown): SaveData['school'] {
   return { subjects };
 }
 
-function readSettings(
-  parsed: Record<string, unknown>,
-  fallback: SaveData['settings'],
-): SaveData['settings'] {
-  const settings = isRecord(parsed.settings) ? parsed.settings : {};
+export function parseSettings(raw: string | null): DeviceSettings | null {
+  if (!raw) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(parsed)) {
+    return null;
+  }
+
+  const fallback = createDefaultSettings();
+  const source = isRecord(parsed.settings) ? parsed.settings : parsed;
   return {
-    sound: readBoolean(settings.sound, fallback.sound),
-    reduceMotion: readBoolean(settings.reduceMotion, fallback.reduceMotion),
+    version: SETTINGS_VERSION,
+    sound: readBoolean(source.sound, fallback.sound),
+    reduceMotion: readBoolean(source.reduceMotion, fallback.reduceMotion),
+  };
+}
+
+export function parseProfileIndex(raw: string | null): ProfileIndex | null {
+  if (!raw) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(parsed) || parsed.version !== PROFILE_INDEX_VERSION) {
+    return null;
+  }
+
+  const profiles: ProfileMeta[] = [];
+  const seen = new Set<string>();
+  const rawProfiles = Array.isArray(parsed.profiles) ? parsed.profiles : [];
+
+  for (const entry of rawProfiles) {
+    if (profiles.length >= MAX_PROFILES || !isRecord(entry)) {
+      continue;
+    }
+    const id = readText(entry.id);
+    const name = readText(entry.name);
+    if (!id || !name || seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    profiles.push({
+      id,
+      name,
+      createdAt: readCount(entry.createdAt, 0),
+    });
+  }
+
+  const requestedActive = readText(parsed.activeProfileId);
+  const activeProfileId =
+    parsed.activeProfileId === null
+      ? null
+      : profiles.some((profile) => profile.id === requestedActive)
+        ? requestedActive
+        : (profiles[0]?.id ?? null);
+
+  return {
+    version: PROFILE_INDEX_VERSION,
+    activeProfileId,
+    profiles,
   };
 }
 
@@ -314,9 +405,13 @@ export function parseSave(raw: string | null): SaveData {
     return fallback;
   }
 
-  const settings = readSettings(parsed, fallback.settings);
-  if (parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SAVE_VERSION) {
-    return { ...fallback, settings };
+  if (
+    parsed.version !== 2 &&
+    parsed.version !== 3 &&
+    parsed.version !== 4 &&
+    parsed.version !== SAVE_VERSION
+  ) {
+    return fallback;
   }
 
   const player = isRecord(parsed.player) ? parsed.player : null;
@@ -341,7 +436,6 @@ export function parseSave(raw: string | null): SaveData {
 
   return {
     version: SAVE_VERSION,
-    settings,
     player: look ? { look } : null,
     pets,
     activePetId,
@@ -383,25 +477,173 @@ function resolveStorage(): StorageLike {
   }
 }
 
+let profileIdCounter = 0;
+
+function createProfileId(): string {
+  profileIdCounter += 1;
+  return `profile-${Date.now().toString(36)}-${profileIdCounter.toString(36)}`;
+}
+
+function nextProfileName(profiles: readonly ProfileMeta[]): string {
+  const used = new Set(profiles.map((profile) => profile.name));
+  for (let number = 1; number <= MAX_PROFILES; number += 1) {
+    const name = text.profiles.name(number);
+    if (!used.has(name)) {
+      return name;
+    }
+  }
+  return text.profiles.name(profiles.length + 1);
+}
+
+function hasLegacyProfileData(raw: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) && parsed.version !== 1;
+  } catch {
+    return false;
+  }
+}
+
 export class SaveManager {
   private data: SaveData;
+  private settings: DeviceSettings;
+  private index: ProfileIndex;
 
   constructor(private storage: StorageLike = resolveStorage()) {
-    let raw: string | null = null;
+    let indexRaw: string | null = null;
+    let settingsRaw: string | null = null;
+    let legacyRaw: string | null = null;
     try {
-      raw = this.storage.getItem(STORAGE_KEY) ?? this.storage.getItem(LEGACY_STORAGE_KEY);
+      indexRaw = this.storage.getItem(PROFILE_INDEX_KEY);
+      settingsRaw = this.storage.getItem(SETTINGS_KEY);
+      for (const key of LEGACY_STORAGE_KEYS) {
+        legacyRaw ??= this.storage.getItem(key);
+      }
     } catch {
       this.storage = createMemoryStorage();
     }
-    this.data = parseSave(raw);
+
+    this.settings =
+      parseSettings(settingsRaw) ?? parseSettings(legacyRaw) ?? createDefaultSettings();
+    const parsedIndex = parseProfileIndex(indexRaw);
+    this.index = parsedIndex ?? createDefaultProfileIndex();
+    this.data = this.loadProfile(this.index.activeProfileId);
+
+    if (!parsedIndex && legacyRaw && hasLegacyProfileData(legacyRaw)) {
+      const meta: ProfileMeta = {
+        id: createProfileId(),
+        name: nextProfileName([]),
+        createdAt: Date.now(),
+      };
+      this.index = {
+        version: PROFILE_INDEX_VERSION,
+        activeProfileId: meta.id,
+        profiles: [meta],
+      };
+      this.data = parseSave(legacyRaw);
+      const profileSaved = this.writeProfile();
+      const indexSaved = this.writeIndex();
+      if (profileSaved && indexSaved) {
+        this.removeLegacyKeys();
+      }
+    } else if (!parsedIndex) {
+      this.writeIndex();
+    }
+
+    if (!parseSettings(settingsRaw)) {
+      this.writeSettings();
+    }
   }
 
   get soundEnabled(): boolean {
-    return this.data.settings.sound;
+    return this.settings.sound;
   }
 
   get reduceMotion(): boolean {
-    return this.data.settings.reduceMotion;
+    return this.settings.reduceMotion;
+  }
+
+  get profiles(): readonly ProfileMeta[] {
+    return this.index.profiles;
+  }
+
+  get activeProfileId(): string | null {
+    return this.index.activeProfileId;
+  }
+
+  get activeProfileName(): string | null {
+    return (
+      this.index.profiles.find((profile) => profile.id === this.index.activeProfileId)?.name ?? null
+    );
+  }
+
+  getProfileOverviews(): readonly ProfileOverview[] {
+    return this.index.profiles.map((meta) => {
+      const data =
+        meta.id === this.index.activeProfileId
+          ? this.data
+          : parseSave(this.readStored(PROFILE_SAVE_PREFIX + meta.id));
+      const pet = data.pets.find((entry) => entry.uid === data.activePetId) ?? null;
+      return {
+        ...meta,
+        active: meta.id === this.index.activeProfileId,
+        look: data.player?.look ?? null,
+        petId: pet?.id ?? null,
+        petName: pet?.name ?? null,
+        petAccessory: pet?.accessory ?? null,
+      };
+    });
+  }
+
+  createProfile(): ProfileMeta | null {
+    if (this.index.profiles.length >= MAX_PROFILES) {
+      return null;
+    }
+
+    this.writeProfile();
+    const meta: ProfileMeta = {
+      id: createProfileId(),
+      name: nextProfileName(this.index.profiles),
+      createdAt: Date.now(),
+    };
+    this.index.profiles.push(meta);
+    this.index.activeProfileId = meta.id;
+    this.data = createDefaultSave();
+    this.writeProfile();
+    this.writeIndex();
+    return meta;
+  }
+
+  switchProfile(id: string): boolean {
+    const exists = this.index.profiles.some((profile) => profile.id === id);
+    if (!exists) {
+      return false;
+    }
+    if (this.index.activeProfileId === id) {
+      return true;
+    }
+
+    this.writeProfile();
+    this.index.activeProfileId = id;
+    this.data = this.loadProfile(id);
+    this.writeIndex();
+    return true;
+  }
+
+  deleteProfile(id: string): boolean {
+    const index = this.index.profiles.findIndex((profile) => profile.id === id);
+    if (index < 0) {
+      return false;
+    }
+
+    this.index.profiles.splice(index, 1);
+    this.removeStored(PROFILE_SAVE_PREFIX + id);
+    if (this.index.activeProfileId === id) {
+      this.index.activeProfileId = null;
+      this.data = createDefaultSave();
+    }
+    this.writeIndex();
+    return true;
   }
 
   get playerLook(): CharacterLook | null {
@@ -449,19 +691,19 @@ export class SaveManager {
   }
 
   setSoundEnabled(enabled: boolean): void {
-    if (this.data.settings.sound === enabled) {
+    if (this.settings.sound === enabled) {
       return;
     }
-    this.data.settings.sound = enabled;
-    this.persist();
+    this.settings.sound = enabled;
+    this.writeSettings();
   }
 
   setReduceMotion(enabled: boolean): void {
-    if (this.data.settings.reduceMotion === enabled) {
+    if (this.settings.reduceMotion === enabled) {
       return;
     }
-    this.data.settings.reduceMotion = enabled;
-    this.persist();
+    this.settings.reduceMotion = enabled;
+    this.writeSettings();
   }
 
   setPlayerLook(look: CharacterLook): void {
@@ -643,16 +885,70 @@ export class SaveManager {
   }
 
   resetGame(): void {
-    const { sound, reduceMotion } = this.data.settings;
-    this.data = { ...createDefaultSave(), settings: { sound, reduceMotion } };
+    if (!this.index.activeProfileId) {
+      return;
+    }
+    this.data = createDefaultSave();
     this.persist();
   }
 
+  private loadProfile(id: string | null): SaveData {
+    if (!id) {
+      return createDefaultSave();
+    }
+    return parseSave(this.readStored(PROFILE_SAVE_PREFIX + id));
+  }
+
   private persist(): void {
+    this.writeProfile();
+  }
+
+  private writeProfile(): boolean {
+    const id = this.index.activeProfileId;
+    if (!id) {
+      return false;
+    }
+    return this.writeStored(PROFILE_SAVE_PREFIX + id, JSON.stringify(this.data));
+  }
+
+  private writeIndex(): boolean {
+    return this.writeStored(PROFILE_INDEX_KEY, JSON.stringify(this.index));
+  }
+
+  private writeSettings(): boolean {
+    return this.writeStored(SETTINGS_KEY, JSON.stringify(this.settings));
+  }
+
+  private readStored(key: string): string | null {
     try {
-      this.storage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      return this.storage.getItem(key);
     } catch {
       this.storage = createMemoryStorage();
+      return null;
+    }
+  }
+
+  private writeStored(key: string, value: string): boolean {
+    try {
+      this.storage.setItem(key, value);
+      return true;
+    } catch {
+      this.storage = createMemoryStorage();
+      return false;
+    }
+  }
+
+  private removeStored(key: string): void {
+    try {
+      this.storage.removeItem(key);
+    } catch {
+      this.storage = createMemoryStorage();
+    }
+  }
+
+  private removeLegacyKeys(): void {
+    for (const key of LEGACY_STORAGE_KEYS) {
+      this.removeStored(key);
     }
   }
 }

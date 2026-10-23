@@ -21,7 +21,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start(SCENE_KEYS.MENU);
+    this.scene.start(SCENE_KEYS.PROFILE);
   }
 
   private createLoadingUi(): void {

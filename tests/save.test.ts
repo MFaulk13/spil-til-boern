@@ -30,6 +30,14 @@ const pet: PetState = {
   accessory: 'bow',
 };
 
+function createManager(storage = createMemoryStorage()): SaveManager {
+  const manager = new SaveManager(storage);
+  if (manager.profiles.length === 0) {
+    manager.createProfile();
+  }
+  return manager;
+}
+
 describe('parseSave', () => {
   it('returns defaults when there is no saved data', () => {
     expect(parseSave(null)).toEqual(createDefaultSave());
@@ -39,7 +47,7 @@ describe('parseSave', () => {
     expect(parseSave('{not json')).toEqual(createDefaultSave());
   });
 
-  it('migrates version 1 saves and keeps the sound setting', () => {
+  it('migrates version 1 saves', () => {
     const saved = parseSave(
       JSON.stringify({
         version: 1,
@@ -48,9 +56,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(4);
-    expect(saved.settings.sound).toBe(false);
-    expect(saved.settings.reduceMotion).toBe(false);
+    expect(saved.version).toBe(5);
     expect(saved.player).toBeNull();
     expect(saved.pets).toEqual([]);
     expect(saved.activePetId).toBeNull();
@@ -72,9 +78,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(4);
-    expect(saved.settings.sound).toBe(false);
-    expect(saved.settings.reduceMotion).toBe(false);
+    expect(saved.version).toBe(5);
     expect(saved.player).toEqual({ look });
     expect(saved.pets).toEqual([pet]);
     expect(saved.activePetId).toBe(pet.uid);
@@ -174,7 +178,6 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.settings.sound).toBe(true);
     expect(saved.player).toBeNull();
     expect(saved.pets).toEqual([]);
     expect(saved.activePetId).toBeNull();
@@ -299,14 +302,9 @@ describe('parseSave', () => {
   });
 
   it('ignores saves from a future version', () => {
-    const saved = parseSave(
-      JSON.stringify({ version: 99, settings: { sound: false }, pets: [pet] }),
-    );
+    const saved = parseSave(JSON.stringify({ version: 99, pets: [pet] }));
 
-    expect(saved).toEqual({
-      ...createDefaultSave(),
-      settings: { sound: false, reduceMotion: false },
-    });
+    expect(saved).toEqual(createDefaultSave());
   });
 
   it('gives duplicate pet ids a fresh uid', () => {
@@ -338,7 +336,7 @@ describe('SaveManager', () => {
 
   it('records school rounds and keeps the best result', () => {
     const storage = createMemoryStorage();
-    const manager = new SaveManager(storage);
+    const manager = createManager(storage);
 
     const first = manager.recordSchoolRound('math', {
       stars: 2,
@@ -375,7 +373,7 @@ describe('SaveManager', () => {
 
   it('persists the player look and pet', () => {
     const storage = createMemoryStorage();
-    const manager = new SaveManager(storage);
+    const manager = createManager(storage);
 
     manager.setPlayerLook(look);
     manager.setPet(pet);
@@ -386,7 +384,7 @@ describe('SaveManager', () => {
   });
 
   it('updates and clamps pet needs', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     manager.setPet(pet);
 
     manager.updateNeeds({ hunger: 120, joy: -5, energy: 40 });
@@ -395,7 +393,7 @@ describe('SaveManager', () => {
   });
 
   it('adds and spends hearts without going negative', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     const start = manager.hearts;
 
     manager.addHearts(5);
@@ -410,7 +408,7 @@ describe('SaveManager', () => {
   });
 
   it('tracks inventory counts and consumes items', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
 
     manager.addItem('treat', 2);
     expect(manager.inventory.treat).toBe(2);
@@ -425,7 +423,7 @@ describe('SaveManager', () => {
 
   it('keeps purchase history after items are consumed or placed', () => {
     const storage = createMemoryStorage();
-    const manager = new SaveManager(storage);
+    const manager = createManager(storage);
 
     manager.recordPurchase('cookie');
     manager.addItem('cookie');
@@ -442,7 +440,7 @@ describe('SaveManager', () => {
   });
 
   it('buys wardrobe items once without putting them in the inventory', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
 
     expect(manager.ownsWardrobeItem('hair-short')).toBe(true);
     expect(manager.ownsWardrobeItem('outfit-princess')).toBe(false);
@@ -461,7 +459,7 @@ describe('SaveManager', () => {
   });
 
   it('adds and removes furniture', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     const item = { uid: 'a1', itemId: 'rug', room: 'living', x: 2, y: 3 } as const;
 
     manager.addFurniture(item);
@@ -477,7 +475,7 @@ describe('SaveManager', () => {
   });
 
   it('resets the game but keeps the sound setting', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     manager.setSoundEnabled(false);
     manager.setPlayerLook(look);
     manager.setPet(pet);
@@ -499,7 +497,7 @@ describe('SaveManager', () => {
   });
 
   it('adopts more pets and switches the active pet', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     manager.setPet(pet);
     const cat = { ...pet, uid: 'pet-misse', id: 'cat' as const, name: 'Misse' };
 
@@ -513,7 +511,7 @@ describe('SaveManager', () => {
   });
 
   it('sets and clears a pet accessory', () => {
-    const manager = new SaveManager(createMemoryStorage());
+    const manager = createManager();
     manager.setPet(pet);
 
     manager.setPetAccessory('hat');
@@ -548,7 +546,7 @@ describe('SaveManager', () => {
       },
     };
 
-    const manager = new SaveManager(brokenStorage);
+    const manager = createManager(brokenStorage);
     manager.addHearts(2);
 
     expect(manager.hearts).toBe(22);

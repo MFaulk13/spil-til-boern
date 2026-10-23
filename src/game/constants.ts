@@ -8,6 +8,7 @@ export const EGG_TAP_COUNT = 5;
 export const SCENE_KEYS = {
   BOOT: 'BootScene',
   PRELOAD: 'PreloadScene',
+  PROFILE: 'ProfileScene',
   MENU: 'MenuScene',
   CHARACTER: 'CharacterScene',
   PET_SELECT: 'PetSelectScene',

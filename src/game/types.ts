@@ -111,12 +111,34 @@ export interface PlacedFurniture {
   y: number;
 }
 
+export interface DeviceSettings {
+  version: 1;
+  sound: boolean;
+  reduceMotion: boolean;
+}
+
+export interface ProfileMeta {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface ProfileIndex {
+  version: 1;
+  activeProfileId: string | null;
+  profiles: ProfileMeta[];
+}
+
+export interface ProfileOverview extends ProfileMeta {
+  active: boolean;
+  look: CharacterLook | null;
+  petId: PetId | null;
+  petName: string | null;
+  petAccessory: string | null;
+}
+
 export interface SaveData {
-  version: 4;
-  settings: {
-    sound: boolean;
-    reduceMotion: boolean;
-  };
+  version: 5;
   player: {
     look: CharacterLook;
   } | null;

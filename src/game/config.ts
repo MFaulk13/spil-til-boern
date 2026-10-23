@@ -9,6 +9,7 @@ import { MenuScene } from '@/scenes/MenuScene';
 import { ParkScene } from '@/scenes/ParkScene';
 import { PetSelectScene } from '@/scenes/PetSelectScene';
 import { PreloadScene } from '@/scenes/PreloadScene';
+import { ProfileScene } from '@/scenes/ProfileScene';
 import { QuizScene } from '@/scenes/QuizScene';
 import { SchoolScene } from '@/scenes/SchoolScene';
 import { ShopScene } from '@/scenes/ShopScene';
@@ -36,6 +37,7 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
     scene: [
       BootScene,
       PreloadScene,
+      ProfileScene,
       MenuScene,
       CharacterScene,
       PetSelectScene,

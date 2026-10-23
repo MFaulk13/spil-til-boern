@@ -28,6 +28,11 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.dialog = undefined;
+    if (!save.activeProfileId) {
+      this.scene.start(SCENE_KEYS.PROFILE);
+      return;
+    }
+
     drawBackdrop(this);
     this.createDecorations();
 
@@ -48,36 +53,59 @@ export class MenuScene extends Phaser.Scene {
 
     const mainLabel = pet ? text.continueWith(pet.name) : player ? text.continue : text.start;
 
+    if (save.activeProfileName) {
+      this.add
+        .text(GAME_WIDTH / 2, 296, text.profiles.current(save.activeProfileName), {
+          fontFamily: FONT_FAMILY,
+          fontSize: '24px',
+          color: COLORS.textMuted,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5);
+    }
+
     new Button(this, {
       x: GAME_WIDTH / 2,
-      y: hasSave ? 356 : 396,
+      y: 358,
       label: mainLabel,
       width: 430,
-      height: 100,
+      height: 104,
       fontSize: 40,
       onClick: () => this.startJourney(),
     });
 
+    new Button(this, {
+      x: hasSave ? GAME_WIDTH / 2 - 175 : GAME_WIDTH / 2,
+      y: 466,
+      label: text.profiles.switch,
+      width: hasSave ? 320 : 360,
+      height: 84,
+      fontSize: 28,
+      color: COLORS.panelLight,
+      textColor: COLORS.text,
+      onClick: () => this.openProfiles(),
+    });
+
     if (hasSave) {
       new Button(this, {
-        x: GAME_WIDTH / 2,
+        x: GAME_WIDTH / 2 + 175,
         y: 466,
-        label: text.newGame,
-        width: 330,
-        height: 76,
+        label: text.profiles.startOver,
+        width: 320,
+        height: 84,
         fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
-        onClick: () => this.confirmNewGame(),
+        onClick: () => this.confirmStartOver(),
       });
     }
 
     this.soundButton = new Button(this, {
-      x: GAME_WIDTH / 2,
-      y: hasSave ? 558 : 520,
+      x: GAME_WIDTH / 2 - 155,
+      y: 558,
       label: this.soundLabel(),
-      width: 250,
-      height: 72,
+      width: 280,
+      height: 76,
       fontSize: 26,
       color: COLORS.teal,
       textColor: COLORS.textDark,
@@ -85,12 +113,12 @@ export class MenuScene extends Phaser.Scene {
     });
 
     new Button(this, {
-      x: GAME_WIDTH / 2,
-      y: hasSave ? 640 : 612,
+      x: GAME_WIDTH / 2 + 175,
+      y: 558,
       label: this.motionLabel(),
-      width: 290,
-      height: 64,
-      fontSize: 23,
+      width: 310,
+      height: 76,
+      fontSize: 24,
       color: COLORS.lavender,
       textColor: COLORS.textDark,
       onClick: () => this.toggleMotion(),
@@ -108,6 +136,7 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-SPACE', () => this.startJourney());
     this.input.keyboard?.on('keydown-S', () => this.toggleSound());
     this.input.keyboard?.on('keydown-M', () => this.toggleMotion());
+    this.input.keyboard?.on('keydown-P', () => this.openProfiles());
   }
 
   private createTitle(): void {
@@ -209,7 +238,15 @@ export class MenuScene extends Phaser.Scene {
     this.scene.start(SCENE_KEYS.CHARACTER);
   }
 
-  private confirmNewGame(): void {
+  private openProfiles(): void {
+    if (this.dialog) {
+      return;
+    }
+    audio.unlock();
+    this.scene.start(SCENE_KEYS.PROFILE, { origin: 'menu' });
+  }
+
+  private confirmStartOver(): void {
     if (this.dialog) {
       return;
     }
