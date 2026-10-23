@@ -72,6 +72,17 @@ export interface SchoolProgress {
   firstCompleted: boolean;
 }
 
+export interface ParkGoalProgress {
+  goalId: string;
+  progress: number;
+}
+
+export interface ParkState {
+  badges: string[];
+  goals: ParkGoalProgress[];
+  tutorialDone: boolean;
+}
+
 export const ITEM_CATEGORIES = ['furniture', 'toy', 'wardrobe', 'accessory', 'treat'] as const;
 
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
@@ -165,7 +176,7 @@ export interface ProfileOverview extends ProfileMeta {
 }
 
 export interface SaveData {
-  version: 5;
+  version: 6;
   player: {
     look: CharacterLook;
   } | null;
@@ -183,6 +194,7 @@ export interface SaveData {
   school: {
     subjects: Partial<Record<QuizSubject, SchoolProgress>>;
   };
+  park: ParkState;
   flags: {
     tutorialDone: boolean;
     homeGuide: HomeGuide;

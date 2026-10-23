@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { loadMissingAssets } from '@/game/assets';
+import { PARK_BADGE_IDS } from '@/game/catalog/park';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { isReducedMotion } from '@/systems/motion';
+import { earnedBadgeCount } from '@/systems/park';
 import { save } from '@/systems/save';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -150,7 +152,7 @@ export class TownScene extends Phaser.Scene {
 
     const icon = this.add.image(0, -44, location.icon).setDisplaySize(78, 78);
     const label = this.add
-      .text(0, 48, location.label, {
+      .text(0, 44, location.label, {
         fontFamily: FONT_FAMILY,
         fontSize: '30px',
         color: COLORS.text,
@@ -159,6 +161,25 @@ export class TownScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     card.add([background, icon, label]);
+
+    if (location.scene === SCENE_KEYS.PARK) {
+      const count = earnedBadgeCount(save.park);
+      const pill = this.add.graphics();
+      pill.fillStyle(COLORS.accent, 0.25);
+      pill.fillRoundedRect(-64, 66, 128, 26, 13);
+      pill.lineStyle(2, COLORS.accent, 0.7);
+      pill.strokeRoundedRect(-64, 66, 128, 26, 13);
+      const star = this.add.image(-42, 79, 'icon-star').setDisplaySize(18, 18);
+      const tally = this.add
+        .text(-24, 79, text.park.badgesCount(count, PARK_BADGE_IDS.length), {
+          fontFamily: FONT_FAMILY,
+          fontSize: '16px',
+          color: COLORS.text,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0, 0.5);
+      card.add([pill, star, tally]);
+    }
     card.setSize(width, height);
     card.setInteractive(
       new Phaser.Geom.Rectangle(0, 0, width, height),

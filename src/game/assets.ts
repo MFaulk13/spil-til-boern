@@ -159,13 +159,16 @@ import toyTeddyUrl from '@/assets/toys/toy-teddy.svg';
 import toyTrainSetUrl from '@/assets/toys/toy-train-set.svg';
 import toyXylophoneUrl from '@/assets/toys/toy-xylophone.svg';
 import toyYarnBallUrl from '@/assets/toys/toy-yarn-ball.svg';
+import iconBenchUrl from '@/assets/ui/icon-bench.svg';
 import iconBookUrl from '@/assets/ui/icon-book.svg';
 import iconBoyUrl from '@/assets/ui/icon-boy.svg';
+import iconBubblesUrl from '@/assets/ui/icon-bubbles.svg';
 import iconCheckUrl from '@/assets/ui/icon-check.svg';
 import iconDanishUrl from '@/assets/ui/icon-danish.svg';
 import iconDiceUrl from '@/assets/ui/icon-dice.svg';
 import iconEnergyUrl from '@/assets/ui/icon-energy.svg';
 import iconEnglishUrl from '@/assets/ui/icon-english.svg';
+import iconFlowerUrl from '@/assets/ui/icon-flower.svg';
 import iconGirlUrl from '@/assets/ui/icon-girl.svg';
 import iconHangerUrl from '@/assets/ui/icon-hanger.svg';
 import iconHeartUrl from '@/assets/ui/icon-heart.svg';
@@ -398,6 +401,9 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   icon('icon-sport', iconSportUrl),
   icon('icon-sound', iconSoundUrl),
   icon('icon-hanger', iconHangerUrl),
+  icon('icon-flower', iconFlowerUrl),
+  icon('icon-bench', iconBenchUrl),
+  icon('icon-bubbles', iconBubblesUrl),
 ];
 
 const ASSETS_BY_KEY = new Map(ASSET_MANIFEST.map((asset) => [asset.key, asset]));
@@ -406,7 +412,15 @@ export function getAsset(key: string): AssetEntry | undefined {
   return ASSETS_BY_KEY.get(key);
 }
 
-export const LAZY_SCENE_ASSET_KEYS = ['town-map', 'shop-room', 'school-room', 'park'] as const;
+export const LAZY_SCENE_ASSET_KEYS = [
+  'town-map',
+  'shop-room',
+  'school-room',
+  'park',
+  'icon-flower',
+  'icon-bench',
+  'icon-bubbles',
+] as const;
 
 export const LAZY_ASSETS: readonly AssetEntry[] = ASSET_MANIFEST.filter((asset) =>
   (LAZY_SCENE_ASSET_KEYS as readonly string[]).includes(asset.key),

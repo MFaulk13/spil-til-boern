@@ -56,7 +56,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(5);
+    expect(saved.version).toBe(6);
     expect(saved.player).toBeNull();
     expect(saved.pets).toEqual([]);
     expect(saved.activePetId).toBeNull();
@@ -78,7 +78,7 @@ describe('parseSave', () => {
       }),
     );
 
-    expect(saved.version).toBe(5);
+    expect(saved.version).toBe(6);
     expect(saved.player).toEqual({ look });
     expect(saved.pets).toEqual([pet]);
     expect(saved.activePetId).toBe(pet.uid);
@@ -364,6 +364,45 @@ describe('parseSave', () => {
       town: false,
     });
   });
+
+  it('starts a migrated save with an empty park', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 5,
+        flags: { tutorialDone: true },
+      }),
+    );
+
+    expect(saved.version).toBe(6);
+    expect(saved.park).toEqual({ badges: [], goals: [], tutorialDone: false });
+  });
+
+  it('keeps valid park badges and goals and filters invalid ones', () => {
+    const saved = parseSave(
+      JSON.stringify({
+        version: 6,
+        park: {
+          badges: ['ball-master', 'unknown-badge', 'ball-master'],
+          goals: [
+            { goalId: 'ball-twice', progress: 9 },
+            { goalId: 'unknown-goal', progress: 1 },
+            { goalId: 'bubbles-six', progress: 2 },
+            { goalId: 'ball-twice', progress: 1 },
+            { goalId: 'bench-rest', progress: 'ja' },
+          ],
+          tutorialDone: true,
+        },
+      }),
+    );
+
+    expect(saved.park.badges).toEqual(['ball-master']);
+    expect(saved.park.goals).toEqual([
+      { goalId: 'ball-twice', progress: 2 },
+      { goalId: 'bubbles-six', progress: 2 },
+      { goalId: 'bench-rest', progress: 0 },
+    ]);
+    expect(saved.park.tutorialDone).toBe(true);
+  });
 });
 
 describe('SaveManager', () => {
@@ -517,6 +556,27 @@ describe('SaveManager', () => {
 
     const reloaded = new SaveManager(storage);
     expect(reloaded.homeGuide).toEqual({ played: true, decorated: true, town: false });
+  });
+
+  it('persists park progress', () => {
+    const storage = createMemoryStorage();
+    const manager = createManager(storage);
+
+    expect(manager.park).toEqual({ badges: [], goals: [], tutorialDone: false });
+
+    const park = {
+      badges: ['ball-master', 'bubble-rider'],
+      goals: [
+        { goalId: 'ball-twice', progress: 1 },
+        { goalId: 'bubbles-six', progress: 4 },
+      ],
+      tutorialDone: true,
+    };
+    manager.setPark(park);
+
+    expect(manager.park).toEqual(park);
+    const reloaded = new SaveManager(storage);
+    expect(reloaded.park).toEqual(park);
   });
 
   it('adds and removes furniture', () => {

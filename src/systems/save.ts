@@ -1,4 +1,5 @@
 import { getItem } from '@/game/catalog/items';
+import { getParkGoal, PARK_BADGES, isParkBadgeId } from '@/game/catalog/park';
 import { createPetUid } from '@/game/catalog/pets';
 import { text } from '@/game/text';
 import {
@@ -12,6 +13,8 @@ import {
   type HomeGuide,
   type HomeGuideKey,
   type Needs,
+  type ParkGoalProgress,
+  type ParkState,
   type PetId,
   type PetState,
   type PlacedFurniture,
@@ -40,7 +43,7 @@ const LEGACY_STORAGE_KEYS = ['gotar:save', 'spil:save'] as const;
 const PROFILE_INDEX_KEY = 'gotar:profiles';
 const PROFILE_SAVE_PREFIX = 'gotar:save:';
 const SETTINGS_KEY = 'gotar:settings';
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 const PROFILE_INDEX_VERSION = 1;
 const SETTINGS_VERSION = 1;
 const PROBE_KEY = 'gotar:probe';
@@ -58,6 +61,7 @@ export function createDefaultSave(): SaveData {
     purchases: {},
     home: { furniture: [] },
     school: { subjects: {} },
+    park: { badges: [], goals: [], tutorialDone: false },
     flags: {
       tutorialDone: false,
       homeGuide: { played: false, decorated: false, town: false },
@@ -331,6 +335,48 @@ function parseHomeGuide(value: unknown, tutorialDone: boolean): HomeGuide {
   };
 }
 
+function parsePark(value: unknown): ParkState {
+  if (!isRecord(value)) {
+    return { badges: [], goals: [], tutorialDone: false };
+  }
+
+  const rawBadges = new Set(
+    (Array.isArray(value.badges) ? value.badges : []).filter(isParkBadgeId),
+  );
+  const badges = PARK_BADGES.map((badge) => badge.id).filter((badgeId) =>
+    rawBadges.has(badgeId),
+  );
+
+  const goals: ParkGoalProgress[] = [];
+  const seen = new Set<string>();
+  const rawGoals = Array.isArray(value.goals) ? value.goals : [];
+  for (const entry of rawGoals) {
+    if (!isRecord(entry) || goals.length >= 3) {
+      continue;
+    }
+    const goalId = readText(entry.goalId);
+    const goal = goalId ? getParkGoal(goalId) : undefined;
+    if (!goal || seen.has(goal.id)) {
+      continue;
+    }
+    const rawProgress =
+      typeof entry.progress === 'number' && Number.isFinite(entry.progress)
+        ? entry.progress
+        : 0;
+    seen.add(goal.id);
+    goals.push({
+      goalId: goal.id,
+      progress: Math.min(goal.target, Math.max(0, Math.floor(rawProgress))),
+    });
+  }
+
+  return {
+    badges,
+    goals,
+    tutorialDone: readBoolean(value.tutorialDone, false),
+  };
+}
+
 export function parseSettings(raw: string | null): DeviceSettings | null {
   if (!raw) {
     return null;
@@ -429,6 +475,7 @@ export function parseSave(raw: string | null): SaveData {
     parsed.version !== 2 &&
     parsed.version !== 3 &&
     parsed.version !== 4 &&
+    parsed.version !== 5 &&
     parsed.version !== SAVE_VERSION
   ) {
     return fallback;
@@ -455,6 +502,7 @@ export function parseSave(raw: string | null): SaveData {
   seedEquippedWardrobePurchases(purchases, look);
   const tutorialDone = readBoolean(flags.tutorialDone, fallback.flags.tutorialDone);
   const homeGuide = parseHomeGuide(flags.homeGuide, tutorialDone);
+  const park = parsePark(parsed.park);
 
   return {
     version: SAVE_VERSION,
@@ -469,6 +517,7 @@ export function parseSave(raw: string | null): SaveData {
     purchases,
     home: { furniture },
     school,
+    park,
     flags: {
       tutorialDone,
       homeGuide,
@@ -718,6 +767,23 @@ export class SaveManager {
       return;
     }
     this.data.flags.homeGuide[key] = true;
+    this.persist();
+  }
+
+  get park(): ParkState {
+    return {
+      badges: [...this.data.park.badges],
+      goals: this.data.park.goals.map((goal) => ({ ...goal })),
+      tutorialDone: this.data.park.tutorialDone,
+    };
+  }
+
+  setPark(park: ParkState): void {
+    this.data.park = {
+      badges: [...park.badges],
+      goals: park.goals.map((goal) => ({ ...goal })),
+      tutorialDone: park.tutorialDone,
+    };
     this.persist();
   }
 
