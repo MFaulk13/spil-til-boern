@@ -16,10 +16,23 @@ describe('balance', () => {
   });
 
   it('lets a child earn enough for the cheapest item from one quiz round', () => {
-    const cheapestPrice = Math.min(...ITEMS.map((item) => item.price));
+    const cheapestPrice = Math.min(
+      ...ITEMS.filter((item) => item.price > 0).map((item) => item.price),
+    );
     const quizHearts = heartsForRound(3, true);
 
     expect(quizHearts + createDefaultSave().wallet.hearts).toBeGreaterThanOrEqual(cheapestPrice);
+  });
+
+  it('makes the cheapest wardrobe item reachable after one quiz round', () => {
+    const cheapestWardrobe = Math.min(
+      ...ITEMS.filter((item) => item.category === 'wardrobe' && item.price > 0).map(
+        (item) => item.price,
+      ),
+    );
+    const quizHearts = heartsForRound(3, true);
+
+    expect(quizHearts + createDefaultSave().wallet.hearts).toBeGreaterThanOrEqual(cheapestWardrobe);
   });
 
   it('keeps a school round rewarding without replacing the shop economy', () => {
@@ -39,7 +52,7 @@ describe('balance', () => {
   });
 
   it('spreads item prices and unlocks across the whole game', () => {
-    const prices = ITEMS.map((item) => item.price);
+    const prices = ITEMS.filter((item) => item.price > 0).map((item) => item.price);
     expect(Math.min(...prices)).toBeGreaterThanOrEqual(5);
     expect(Math.max(...prices)).toBeLessThanOrEqual(80);
 

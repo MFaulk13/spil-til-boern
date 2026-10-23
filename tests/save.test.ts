@@ -241,6 +241,32 @@ describe('parseSave', () => {
     expect(saved.player?.look.accessory).toBeNull();
   });
 
+  it('keeps paid wardrobe items equipped in older saves owned', () => {
+    const paidLook: CharacterLook = {
+      ...look,
+      hair: 'braid',
+      hairColor: 'purple',
+      outfit: 'hoodie',
+      outfitColor: 'coral',
+      accessory: 'glasses',
+    };
+    const saved = parseSave(
+      JSON.stringify({
+        version: 4,
+        player: { look: paidLook },
+        wallet: { hearts: 10 },
+      }),
+    );
+
+    expect(saved.purchases).toMatchObject({
+      'hair-braid': 1,
+      'hair-color-purple': 1,
+      'outfit-hoodie': 1,
+    });
+    expect(saved.purchases['outfit-color-coral']).toBeUndefined();
+    expect(saved.purchases['accessory-glasses']).toBeUndefined();
+  });
+
   it('clamps pet needs to the valid range', () => {
     const saved = parseSave(
       JSON.stringify({
@@ -413,6 +439,25 @@ describe('SaveManager', () => {
 
     const reloaded = new SaveManager(storage);
     expect(reloaded.purchases).toEqual({ cookie: 1, rug: 1 });
+  });
+
+  it('buys wardrobe items once without putting them in the inventory', () => {
+    const manager = new SaveManager(createMemoryStorage());
+
+    expect(manager.ownsWardrobeItem('hair-short')).toBe(true);
+    expect(manager.ownsWardrobeItem('outfit-princess')).toBe(false);
+    expect(manager.buyWardrobeItem('outfit-princess')).toBe(false);
+    expect(manager.hearts).toBe(20);
+
+    expect(manager.buyWardrobeItem('outfit-hoodie')).toBe(true);
+    expect(manager.hearts).toBe(6);
+    expect(manager.ownsWardrobeItem('outfit-hoodie')).toBe(true);
+    expect(manager.purchases['outfit-hoodie']).toBe(1);
+    expect(manager.inventory['outfit-hoodie']).toBeUndefined();
+
+    expect(manager.buyWardrobeItem('outfit-hoodie')).toBe(false);
+    expect(manager.buyWardrobeItem('hair-short')).toBe(false);
+    expect(manager.hearts).toBe(6);
   });
 
   it('adds and removes furniture', () => {

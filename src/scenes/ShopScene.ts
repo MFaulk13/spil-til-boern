@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { loadMissingAssets } from '@/game/assets';
+import { DEFAULT_LOOK } from '@/game/catalog/appearance';
 import {
   categoryPurchaseCount,
   isItemUnlocked,
@@ -14,6 +15,7 @@ import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { canAfford, itemCount, purchase } from '@/systems/economy';
 import { save } from '@/systems/save';
+import { applyWardrobeItem } from '@/systems/wardrobe';
 import { Button } from '@/ui/Button';
 import { ItemCard } from '@/ui/ItemCard';
 import { ConfirmDialog } from '@/ui/Modal';
@@ -21,14 +23,25 @@ import { PetCard } from '@/ui/PetCard';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 type ShopTab = ItemCategory | 'pet';
+type ShopOrigin = 'town' | 'wardrobe';
 
+const SHOP_TABS: readonly ShopTab[] = [...ITEM_CATEGORIES, 'pet'];
 const CARD_WIDTH = 270;
 const CARD_HEIGHT = 145;
 const COLUMN_X = [205, 495, 785, 1075] as const;
 const ROW_Y = [300, 462, 624] as const;
+const TAB_WIDTH = 168;
+const TAB_GAP = 16;
+
+function isShopTab(value: unknown): value is ShopTab {
+  return typeof value === 'string' && (SHOP_TABS as readonly string[]).includes(value);
+}
 
 export class ShopScene extends Phaser.Scene {
   private category: ShopTab = 'furniture';
+  private initialCategory: ShopTab = 'furniture';
+  private origin: ShopOrigin = 'town';
+  private focusId: string | null = null;
   private heartsText?: Phaser.GameObjects.Text;
   private grid?: Phaser.GameObjects.Container;
   private dialog?: ConfirmDialog;
@@ -39,13 +52,19 @@ export class ShopScene extends Phaser.Scene {
     super(SCENE_KEYS.SHOP);
   }
 
+  init(data: { tab?: unknown; origin?: unknown; focusId?: unknown } = {}): void {
+    this.initialCategory = isShopTab(data.tab) ? data.tab : 'furniture';
+    this.origin = data.origin === 'wardrobe' ? 'wardrobe' : 'town';
+    this.focusId = typeof data.focusId === 'string' ? data.focusId : null;
+  }
+
   preload(): void {
     loadMissingAssets(this.load, this.textures, ['shop-room']);
   }
 
   create(): void {
     this.dialog = undefined;
-    this.category = 'furniture';
+    this.category = this.initialCategory;
     this.page = 0;
     this.categoryButtons.clear();
 
@@ -54,7 +73,7 @@ export class ShopScene extends Phaser.Scene {
     new Button(this, {
       x: 96,
       y: 58,
-      label: text.shop.back,
+      label: this.origin === 'wardrobe' ? text.shop.backWardrobe : text.shop.back,
       width: 160,
       height: 70,
       fontSize: 24,
@@ -107,11 +126,10 @@ export class ShopScene extends Phaser.Scene {
 
   private setupKeyboard(): void {
     const keyboard = this.input.keyboard;
-    keyboard?.on('keydown-ONE', () => this.selectCategory('furniture'));
-    keyboard?.on('keydown-TWO', () => this.selectCategory('toy'));
-    keyboard?.on('keydown-THREE', () => this.selectCategory('accessory'));
-    keyboard?.on('keydown-FOUR', () => this.selectCategory('treat'));
-    keyboard?.on('keydown-FIVE', () => this.selectCategory('pet'));
+    const keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'];
+    SHOP_TABS.forEach((tab, index) => {
+      keyboard?.on(`keydown-${keys[index]}`, () => this.selectCategory(tab));
+    });
     keyboard?.on('keydown-ESC', () => {
       if (!this.dialog) {
         this.goBack();
@@ -123,20 +141,22 @@ export class ShopScene extends Phaser.Scene {
     const labels: Record<ShopTab, string> = {
       furniture: text.shop.categories.furniture,
       toy: text.shop.categories.toy,
+      wardrobe: text.shop.categories.wardrobe,
       accessory: text.shop.categories.accessory,
       treat: text.shop.categories.treat,
       pet: text.shop.categories.pet,
     };
-    const tabs: readonly ShopTab[] = [...ITEM_CATEGORIES, 'pet'];
+    const totalWidth = SHOP_TABS.length * TAB_WIDTH + (SHOP_TABS.length - 1) * TAB_GAP;
+    const startX = (GAME_WIDTH - totalWidth) / 2 + TAB_WIDTH / 2;
 
-    tabs.forEach((category, index) => {
+    SHOP_TABS.forEach((category, index) => {
       const button = new Button(this, {
-        x: 230 + index * 205,
+        x: startX + index * (TAB_WIDTH + TAB_GAP),
         y: 174,
         label: labels[category],
-        width: 190,
+        width: TAB_WIDTH,
         height: 68,
-        fontSize: 23,
+        fontSize: 20,
         color: category === this.category ? COLORS.primary : COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => this.selectCategory(category),
@@ -168,9 +188,19 @@ export class ShopScene extends Phaser.Scene {
     }
 
     const category = this.category;
-    const items = itemsByCategory(category);
+    const allItems = itemsByCategory(category);
+    const items = category === 'wardrobe' ? allItems.filter((item) => item.price > 0) : allItems;
     const purchased = categoryPurchaseCount(save.purchases, category);
     const pageSize = COLUMN_X.length * ROW_Y.length;
+
+    if (this.focusId) {
+      const index = items.findIndex((item) => item.id === this.focusId);
+      if (index >= 0) {
+        this.page = Math.floor(index / pageSize);
+      }
+      this.focusId = null;
+    }
+
     const pages = Math.max(1, Math.ceil(items.length / pageSize));
     this.page = Math.min(this.page, pages - 1);
     const visible = items.slice(this.page * pageSize, (this.page + 1) * pageSize);
@@ -179,15 +209,22 @@ export class ShopScene extends Phaser.Scene {
       const column = index % COLUMN_X.length;
       const row = Math.floor(index / COLUMN_X.length);
       const unlocked = isItemUnlocked(item, purchased);
+      const owned =
+        item.category === 'wardrobe'
+          ? save.ownsWardrobeItem(item.id)
+            ? 1
+            : 0
+          : itemCount(save, item.id);
       const card = new ItemCard(this, {
         x: COLUMN_X[column],
         y: ROW_Y[row] ?? ROW_Y[ROW_Y.length - 1],
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
         item,
-        owned: itemCount(save, item.id),
+        owned,
         affordable: canAfford(save, item.price),
         locked: !unlocked,
+        showPrice: item.category !== 'wardrobe' || owned === 0,
         lockLabel: unlocked
           ? undefined
           : text.shop.locked(item.requiredPurchases - purchased, text.shop.categories[category]),
@@ -276,6 +313,12 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
 
+    if (item.category === 'wardrobe' && save.ownsWardrobeItem(item.id)) {
+      audio.play('error');
+      this.showToast(text.shop.alreadyOwnedWardrobe);
+      return;
+    }
+
     const purchased = categoryPurchaseCount(save.purchases, item.category);
     if (!isItemUnlocked(item, purchased)) {
       audio.play('error');
@@ -307,6 +350,21 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buy(item: ItemDefinition): void {
+    if (item.category === 'wardrobe') {
+      if (!save.buyWardrobeItem(item.id)) {
+        audio.play('error');
+        this.showToast(text.shop.notEnough(Math.max(0, item.price - save.hearts)));
+        return;
+      }
+
+      save.setPlayerLook(applyWardrobeItem(save.playerLook ?? DEFAULT_LOOK, item));
+      audio.play('unlock');
+      this.updateHearts();
+      this.refreshGrid();
+      this.showToast(text.shop.boughtAndWornWardrobe(item.label));
+      return;
+    }
+
     const result = purchase(save, item.id, item.price);
     if (!result.ok) {
       audio.play('error');
@@ -399,6 +457,10 @@ export class ShopScene extends Phaser.Scene {
   private goBack(): void {
     this.cameras.main.fadeOut(200, 255, 246, 229);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      if (this.origin === 'wardrobe') {
+        this.scene.start(SCENE_KEYS.CHARACTER, { mode: 'edit' });
+        return;
+      }
       this.scene.start(SCENE_KEYS.TOWN);
     });
   }

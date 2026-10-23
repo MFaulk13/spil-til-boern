@@ -84,6 +84,35 @@ describe('randomizeLook', () => {
         ACCESSORY_STYLES.some((option) => option.id === random.accessory),
     ).toBe(true);
   });
+
+  it('only uses the allowed pool when one is given', () => {
+    const pool = {
+      hair: ['bob'],
+      hairColor: ['pink'],
+      eyes: ['star'],
+      mouth: ['cat'],
+      outfit: ['kimono'],
+      outfitColor: ['navy'],
+      accessories: ['crown'],
+    };
+    const random = randomizeLook(source([0.9, 0.9, 0.4, 0.2, 0.8, 0.6, 0.1, 0.7]), pool);
+
+    expect(random.hair).toBe('bob');
+    expect(random.hairColor).toBe('pink');
+    expect(random.eyes).toBe('star');
+    expect(random.mouth).toBe('cat');
+    expect(random.outfit).toBe('kimono');
+    expect(random.outfitColor).toBe('navy');
+    expect(random.accessory).toBe('crown');
+  });
+
+  it('leaves the accessory empty when no accessories are allowed', () => {
+    const random = randomizeLook(source([0.99, 0.2, 0.4, 0.6]), {
+      accessories: [],
+    });
+
+    expect(random.accessory).toBeNull();
+  });
 });
 
 describe('buildCharacterLayers', () => {

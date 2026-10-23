@@ -45,9 +45,21 @@ export interface SchoolProgress {
   firstCompleted: boolean;
 }
 
-export const ITEM_CATEGORIES = ['furniture', 'toy', 'accessory', 'treat'] as const;
+export const ITEM_CATEGORIES = ['furniture', 'toy', 'wardrobe', 'accessory', 'treat'] as const;
 
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+export const WARDROBE_SLOTS = [
+  'hair',
+  'hairColor',
+  'eyes',
+  'mouth',
+  'outfit',
+  'outfitColor',
+  'accessory',
+] as const;
+
+export type WardrobeSlot = (typeof WARDROBE_SLOTS)[number];
 
 export const GENDERS = ['boy', 'girl'] as const;
 

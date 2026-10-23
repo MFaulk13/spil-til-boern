@@ -91,22 +91,46 @@ interface RandomSource {
   random(): number;
 }
 
+export interface LookPool {
+  hair?: readonly string[];
+  hairColor?: readonly string[];
+  eyes?: readonly string[];
+  mouth?: readonly string[];
+  outfit?: readonly string[];
+  outfitColor?: readonly string[];
+  accessories?: readonly string[];
+}
+
 function pick<T>(options: readonly T[], source: RandomSource): T {
   return options[Math.floor(source.random() * options.length) % options.length];
 }
 
-export function randomizeLook(source: RandomSource = Math): CharacterLook {
-  const accessory = source.random() < 0.5 ? 'none' : pick(ACCESSORY_STYLES, source).id;
+function pickId<T extends { id: string }>(
+  options: readonly T[],
+  allowed: readonly string[] | undefined,
+  source: RandomSource,
+): string {
+  const ids = allowed && allowed.length > 0 ? allowed : options.map((option) => option.id);
+  return pick(ids, source);
+}
+
+export function randomizeLook(source: RandomSource = Math, pool?: LookPool): CharacterLook {
+  const accessoryOptions =
+    pool?.accessories ??
+    ACCESSORY_STYLES.filter((option) => option.id !== 'none').map((option) => option.id);
+  const accessory =
+    accessoryOptions.length === 0 || source.random() < 0.5 ? null : pick(accessoryOptions, source);
+
   return {
     gender: pick(GENDER_STYLES, source).id,
     skin: pick(SKIN_TONES, source).id,
-    hair: pick(HAIR_STYLES, source).id,
-    hairColor: pick(HAIR_COLORS, source).id,
-    eyes: pick(EYE_STYLES, source).id,
-    mouth: pick(MOUTH_STYLES, source).id,
-    outfit: pick(OUTFIT_STYLES, source).id,
-    outfitColor: pick(OUTFIT_COLORS, source).id,
-    accessory: accessory === 'none' ? null : accessory,
+    hair: pickId(HAIR_STYLES, pool?.hair, source),
+    hairColor: pickId(HAIR_COLORS, pool?.hairColor, source),
+    eyes: pickId(EYE_STYLES, pool?.eyes, source),
+    mouth: pickId(MOUTH_STYLES, pool?.mouth, source),
+    outfit: pickId(OUTFIT_STYLES, pool?.outfit, source),
+    outfitColor: pickId(OUTFIT_COLORS, pool?.outfitColor, source),
+    accessory,
   };
 }
 

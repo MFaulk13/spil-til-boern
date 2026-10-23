@@ -20,6 +20,7 @@ import {
   nextSchoolProgress,
   type SchoolRoundResult,
 } from '@/systems/school';
+import { seedEquippedWardrobePurchases } from '@/systems/wardrobe';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -335,6 +336,8 @@ export function parseSave(raw: string | null): SaveData {
   for (const placed of furniture) {
     legacyPurchaseCounts[placed.itemId] = (legacyPurchaseCounts[placed.itemId] ?? 0) + 1;
   }
+  const purchases = parsePurchases(parsed.purchases, legacyPurchaseCounts);
+  seedEquippedWardrobePurchases(purchases, look);
 
   return {
     version: SAVE_VERSION,
@@ -347,7 +350,7 @@ export function parseSave(raw: string | null): SaveData {
       earnedHearts: readCount(wallet.earnedHearts, 0),
     },
     inventory,
-    purchases: parsePurchases(parsed.purchases, legacyPurchaseCounts),
+    purchases,
     home: { furniture },
     school,
     flags: {
@@ -555,6 +558,29 @@ export class SaveManager {
     }
     this.data.purchases[itemId] = (this.data.purchases[itemId] ?? 0) + 1;
     this.persist();
+  }
+
+  ownsWardrobeItem(itemId: string): boolean {
+    const item = getItem(itemId);
+    if (!item || item.category !== 'wardrobe') {
+      return false;
+    }
+    return item.price <= 0 || (this.data.purchases[itemId] ?? 0) > 0;
+  }
+
+  buyWardrobeItem(itemId: string): boolean {
+    const item = getItem(itemId);
+    if (!item || item.category !== 'wardrobe' || item.price <= 0) {
+      return false;
+    }
+    if (this.ownsWardrobeItem(itemId) || item.price > this.data.wallet.hearts) {
+      return false;
+    }
+
+    this.data.wallet.hearts -= item.price;
+    this.data.purchases[itemId] = 1;
+    this.persist();
+    return true;
   }
 
   consumeItem(itemId: string): boolean {

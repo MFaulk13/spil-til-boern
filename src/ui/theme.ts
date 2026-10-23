@@ -47,6 +47,7 @@ export const CARE_COLORS: Record<CareAction, number> = {
 export const CATEGORY_COLORS: Record<ItemCategory, number> = {
   furniture: 0x62c9b8,
   toy: 0xffc94d,
+  wardrobe: 0xc9b2e8,
   accessory: 0xc9b2e8,
   treat: 0xff9f70,
 };

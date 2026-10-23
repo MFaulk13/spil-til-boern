@@ -1,5 +1,15 @@
+import {
+  ACCESSORY_STYLES,
+  HAIR_COLORS,
+  HAIR_STYLES,
+  OUTFIT_COLORS,
+  OUTFIT_STYLES,
+  type ColorOption,
+  type StyleOption,
+} from '@/game/catalog/appearance';
+import { wardrobeItemId } from '@/game/catalog/wardrobe';
 import { text } from '@/game/text';
-import type { ItemCategory } from '@/game/types';
+import type { ItemCategory, WardrobeSlot } from '@/game/types';
 
 export interface ItemDefinition {
   id: string;
@@ -13,6 +23,9 @@ export interface ItemDefinition {
   gridHeight: number;
   placeable: boolean;
   requiredPurchases: number;
+  color?: number;
+  wardrobeSlot?: WardrobeSlot;
+  appearanceId?: string;
 }
 
 const CELL = 64;
@@ -65,7 +78,72 @@ function collectible(
   };
 }
 
-export const ITEMS: readonly ItemDefinition[] = [
+function requireStyle(options: readonly StyleOption[], id: string): StyleOption {
+  const option = options.find((entry) => entry.id === id);
+  if (!option) {
+    throw new Error(`Unknown wardrobe style: ${id}`);
+  }
+  return option;
+}
+
+function requireColor(options: readonly ColorOption[], id: string): ColorOption {
+  const option = options.find((entry) => entry.id === id);
+  if (!option) {
+    throw new Error(`Unknown wardrobe color: ${id}`);
+  }
+  return option;
+}
+
+function wardrobeStyle(
+  slot: WardrobeSlot,
+  appearanceId: string,
+  label: string,
+  price: number,
+  assetKey: string,
+): ItemDefinition {
+  return {
+    id: wardrobeItemId(slot, appearanceId),
+    category: 'wardrobe',
+    label,
+    price,
+    assetKey,
+    width: 384,
+    height: 384,
+    gridWidth: 0,
+    gridHeight: 0,
+    placeable: false,
+    requiredPurchases: 0,
+    wardrobeSlot: slot,
+    appearanceId,
+  };
+}
+
+function wardrobeColor(
+  slot: WardrobeSlot,
+  appearanceId: string,
+  label: string,
+  price: number,
+  color: number,
+): ItemDefinition {
+  return {
+    id: wardrobeItemId(slot, appearanceId),
+    category: 'wardrobe',
+    label,
+    price,
+    assetKey: '',
+    width: 96,
+    height: 96,
+    gridWidth: 0,
+    gridHeight: 0,
+    placeable: false,
+    requiredPurchases: 0,
+    color,
+    wardrobeSlot: slot,
+    appearanceId,
+  };
+}
+
+const BASE_ITEMS: readonly ItemDefinition[] = [
   placeable('sofa', 'furniture', text.items.sofa, 35, 'furniture-sofa', 4, 2),
   placeable('chair', 'furniture', text.items.chair, 18, 'furniture-chair', 2, 2),
   placeable('table', 'furniture', text.items.table, 22, 'furniture-table', 2, 2),
@@ -149,6 +227,118 @@ export const ITEMS: readonly ItemDefinition[] = [
   collectible('watermelon', 'treat', text.items.watermelon, 7, 'treat-watermelon'),
   collectible('broccoli', 'treat', text.items.broccoli, 5, 'treat-broccoli'),
   collectible('donut', 'treat', text.items.donut, 8, 'treat-donut', 4),
+];
+
+const HAIR_PRICES: readonly (readonly [string, number])[] = [
+  ['short', 0],
+  ['long', 0],
+  ['curly', 0],
+  ['bun', 10],
+  ['braid', 10],
+  ['ponytail', 10],
+  ['pigtails', 10],
+  ['bob', 12],
+  ['wavy', 12],
+  ['afro', 14],
+  ['mohawk', 16],
+];
+
+const HAIR_COLOR_PRICES: readonly (readonly [string, number])[] = [
+  ['brown', 0],
+  ['black', 0],
+  ['blonde', 0],
+  ['red', 0],
+  ['blue', 6],
+  ['purple', 6],
+  ['orange', 6],
+  ['pink', 6],
+  ['mint', 6],
+  ['silver', 6],
+];
+
+const OUTFIT_PRICES: readonly (readonly [string, number])[] = [
+  ['tshirt', 0],
+  ['dress', 0],
+  ['overalls', 0],
+  ['tank', 12],
+  ['hoodie', 14],
+  ['shirt', 14],
+  ['sweater', 14],
+  ['pajamas', 14],
+  ['apron', 14],
+  ['raincoat', 16],
+  ['jacket', 16],
+  ['vest', 16],
+  ['poncho', 18],
+  ['tracksuit', 18],
+  ['kimono', 20],
+  ['princess', 22],
+  ['superhero', 22],
+];
+
+const OUTFIT_COLOR_PRICES: readonly (readonly [string, number])[] = [
+  ['teal', 0],
+  ['coral', 0],
+  ['yellow', 0],
+  ['blue', 0],
+  ['pink', 6],
+  ['green', 6],
+  ['orange', 6],
+  ['mint', 6],
+  ['lavender', 6],
+  ['navy', 6],
+];
+
+const ACCESSORY_PRICES: readonly (readonly [string, number])[] = [
+  ['glasses', 0],
+  ['cap', 0],
+  ['bow', 10],
+  ['headphones', 14],
+  ['scarf', 12],
+  ['beanie', 10],
+  ['flower', 10],
+  ['crown', 20],
+  ['earrings', 12],
+  ['starGlasses', 14],
+  ['mask', 12],
+  ['necklace', 14],
+  ['backpack', 16],
+  ['catEars', 14],
+  ['sunhat', 16],
+];
+
+const HAIR_ITEMS = HAIR_PRICES.map(([appearanceId, price]) => {
+  const style = requireStyle(HAIR_STYLES, appearanceId);
+  return wardrobeStyle('hair', appearanceId, style.label, price, style.assetKey);
+});
+
+const HAIR_COLOR_ITEMS = HAIR_COLOR_PRICES.map(([appearanceId, price]) => {
+  const color = requireColor(HAIR_COLORS, appearanceId);
+  return wardrobeColor('hairColor', appearanceId, color.label, price, color.color);
+});
+
+const OUTFIT_ITEMS = OUTFIT_PRICES.map(([appearanceId, price]) => {
+  const style = requireStyle(OUTFIT_STYLES, appearanceId);
+  return wardrobeStyle('outfit', appearanceId, style.label, price, style.assetKey);
+});
+
+const OUTFIT_COLOR_ITEMS = OUTFIT_COLOR_PRICES.map(([appearanceId, price]) => {
+  const color = requireColor(OUTFIT_COLORS, appearanceId);
+  return wardrobeColor('outfitColor', appearanceId, color.label, price, color.color);
+});
+
+const ACCESSORY_ITEMS = ACCESSORY_PRICES.map(([appearanceId, price]) => {
+  const style = requireStyle(ACCESSORY_STYLES, appearanceId);
+  return wardrobeStyle('accessory', appearanceId, style.label, price, style.assetKey);
+});
+
+export const ITEMS: readonly ItemDefinition[] = [
+  ...BASE_ITEMS,
+  ...OUTFIT_ITEMS,
+  ...HAIR_ITEMS,
+  ...OUTFIT_COLOR_ITEMS,
+  ...HAIR_COLOR_ITEMS,
+  ...ACCESSORY_ITEMS,
 ];
 
 const ITEMS_BY_ID = new Map(ITEMS.map((item) => [item.id, item]));

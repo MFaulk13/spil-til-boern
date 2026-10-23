@@ -14,11 +14,17 @@ import {
   type ColorOption,
   type StyleOption,
 } from '@/game/catalog/appearance';
+import { QUICK_START_EYES, QUICK_START_MOUTHS } from '@/game/catalog/wardrobe';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
-import type { CharacterLook } from '@/game/types';
-import { normalizeLook, randomizeLook } from '@/systems/appearance';
+import type { CharacterLook, WardrobeSlot } from '@/game/types';
+import { normalizeLook, randomizeLook, type LookPool } from '@/systems/appearance';
 import { save } from '@/systems/save';
+import {
+  getWardrobeItemFor,
+  isFreeWardrobeOption,
+  isWardrobeOptionLocked,
+} from '@/systems/wardrobe';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
 import { drawBackdrop } from '@/ui/background';
@@ -40,7 +46,10 @@ interface StyleTileOptions {
   imageKey?: string;
   tint?: number;
   none?: boolean;
+  locked?: boolean;
+  price?: number;
   onSelect: () => void;
+  onLocked?: () => void;
 }
 
 export class CharacterScene extends Phaser.Scene {
@@ -50,6 +59,7 @@ export class CharacterScene extends Phaser.Scene {
   private editMode = false;
   private preview!: CharacterView;
   private optionLayer!: Phaser.GameObjects.Container;
+  private lockedHint?: Phaser.GameObjects.Text;
   private readonly tabs = new Map<AppearanceCategory, Button>();
 
   constructor() {
@@ -176,9 +186,10 @@ export class CharacterScene extends Phaser.Scene {
 
   private renderOptions(): void {
     this.optionLayer.removeAll(true);
+    this.updateLockedHint();
 
     if (this.category === 'gender') {
-      this.renderStyleOptions(GENDER_STYLES, this.look.gender, (option) =>
+      this.renderStyleOptions(null, GENDER_STYLES, this.look.gender, (option) =>
         this.updateLook({ gender: option.id }),
       );
       return;
@@ -192,11 +203,15 @@ export class CharacterScene extends Phaser.Scene {
     }
 
     if (this.category === 'hair') {
-      this.renderStyleOptions(HAIR_STYLES, this.look.hair, (option) =>
-        this.updateLook({ hair: option.id }),
+      this.renderStyleOptions(
+        'hair',
+        this.visibleOptions('hair', HAIR_STYLES),
+        this.look.hair,
+        (option) => this.updateLook({ hair: option.id }),
       );
       this.renderColorPalette(
-        HAIR_COLORS,
+        'hairColor',
+        this.visibleOptions('hairColor', HAIR_COLORS),
         this.look.hairColor,
         text.appearance.hairColor,
         (option) => this.updateLook({ hairColor: option.id }),
@@ -205,25 +220,35 @@ export class CharacterScene extends Phaser.Scene {
     }
 
     if (this.category === 'eyes') {
-      this.renderStyleOptions(EYE_STYLES, this.look.eyes, (option) =>
-        this.updateLook({ eyes: option.id }),
+      this.renderStyleOptions(
+        'eyes',
+        this.visibleOptions('eyes', EYE_STYLES),
+        this.look.eyes,
+        (option) => this.updateLook({ eyes: option.id }),
       );
       return;
     }
 
     if (this.category === 'mouth') {
-      this.renderStyleOptions(MOUTH_STYLES, this.look.mouth, (option) =>
-        this.updateLook({ mouth: option.id }),
+      this.renderStyleOptions(
+        'mouth',
+        this.visibleOptions('mouth', MOUTH_STYLES),
+        this.look.mouth,
+        (option) => this.updateLook({ mouth: option.id }),
       );
       return;
     }
 
     if (this.category === 'outfit') {
-      this.renderStyleOptions(OUTFIT_STYLES, this.look.outfit, (option) =>
-        this.updateLook({ outfit: option.id }),
+      this.renderStyleOptions(
+        'outfit',
+        this.visibleOptions('outfit', OUTFIT_STYLES),
+        this.look.outfit,
+        (option) => this.updateLook({ outfit: option.id }),
       );
       this.renderColorPalette(
-        OUTFIT_COLORS,
+        'outfitColor',
+        this.visibleOptions('outfitColor', OUTFIT_COLORS),
         this.look.outfitColor,
         text.appearance.outfitColor,
         (option) => this.updateLook({ outfitColor: option.id }),
@@ -231,12 +256,16 @@ export class CharacterScene extends Phaser.Scene {
       return;
     }
 
-    this.renderStyleOptions(ACCESSORY_STYLES, this.look.accessory ?? 'none', (option) =>
-      this.updateLook({ accessory: option.id === 'none' ? null : option.id }),
+    this.renderStyleOptions(
+      'accessory',
+      this.visibleOptions('accessory', ACCESSORY_STYLES),
+      this.look.accessory ?? 'none',
+      (option) => this.updateLook({ accessory: option.id === 'none' ? null : option.id }),
     );
   }
 
   private renderStyleOptions<T extends StyleOption>(
+    slot: WardrobeSlot | null,
     options: readonly T[],
     selectedId: string,
     onSelect: (option: T) => void,
@@ -250,6 +279,8 @@ export class CharacterScene extends Phaser.Scene {
       const x = OPTION_X[index % OPTION_X.length];
       const y = OPTION_Y[Math.floor(index / OPTION_X.length)];
       const isNone = option.id === 'none';
+      const locked = slot !== null && this.isLocked(slot, option.id);
+      const wardrobeItem = slot !== null ? getWardrobeItemFor(slot, option.id) : undefined;
       let tint: number | undefined;
       if (this.category === 'hair') {
         tint = HAIR_COLORS.find((color) => color.id === this.look.hairColor)?.color;
@@ -265,7 +296,10 @@ export class CharacterScene extends Phaser.Scene {
         imageKey: isNone ? undefined : option.assetKey,
         tint,
         none: isNone,
+        locked,
+        price: locked ? wardrobeItem?.price : undefined,
         onSelect: () => onSelect(option),
+        onLocked: () => this.openShop(wardrobeItem?.id),
       });
       this.optionLayer.add(tile);
     });
@@ -356,12 +390,19 @@ export class CharacterScene extends Phaser.Scene {
       if (options.tint !== undefined) {
         image.setTint(options.tint);
       }
+      if (options.locked) {
+        image.setAlpha(0.35);
+      }
       tile.add(image);
+    }
+
+    if (options.locked) {
+      tile.add(this.createLockBadge(TILE_SIZE / 2 - 20, -TILE_SIZE / 2 + 20));
     }
 
     tile.add(
       this.add
-        .text(0, 47, options.label, {
+        .text(0, options.locked ? 29 : 47, options.label, {
           fontFamily: FONT_FAMILY,
           fontSize: '14px',
           color: COLORS.text,
@@ -372,11 +413,55 @@ export class CharacterScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
+    if (options.locked && options.price !== undefined) {
+      tile.add(this.add.image(-18, 51, 'icon-heart').setDisplaySize(16, 16));
+      tile.add(
+        this.add
+          .text(-5, 51, text.appearance.lockedPrice(options.price), {
+            fontFamily: FONT_FAMILY,
+            fontSize: '13px',
+            color: COLORS.textAccent,
+            fontStyle: 'bold',
+          })
+          .setOrigin(0, 0.5),
+      );
+    }
+
     tile.on('pointerdown', () => {
+      if (options.locked) {
+        options.onLocked?.();
+        return;
+      }
       options.onSelect();
     });
 
     return tile;
+  }
+
+  private createLockBadge(x: number, y: number): Phaser.GameObjects.Container {
+    const badge = this.add.container(x, y);
+    const background = this.add
+      .circle(0, 0, 15, COLORS.panelLight)
+      .setStrokeStyle(2, COLORS.ink, 0.35);
+    badge.add([background, this.createLockIcon(0, 0, 18)]);
+    return badge;
+  }
+
+  private createLockIcon(x: number, y: number, size: number): Phaser.GameObjects.Container {
+    const icon = this.add.container(x, y);
+    const shackle = this.add.graphics();
+    shackle.lineStyle(3, COLORS.ink, 1);
+    shackle.beginPath();
+    shackle.arc(0, -3, 6, Math.PI, 0, false);
+    shackle.strokePath();
+
+    const body = this.add.graphics();
+    body.fillStyle(COLORS.ink, 1);
+    body.fillRoundedRect(-8, 0, 16, 12, 3);
+
+    icon.add([shackle, body]);
+    icon.setScale(size / 24);
+    return icon;
   }
 
   private renderColorOptions(
@@ -435,6 +520,7 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   private renderColorPalette(
+    slot: WardrobeSlot,
     colors: readonly ColorOption[],
     selectedId: string,
     label: string,
@@ -458,16 +544,100 @@ export class CharacterScene extends Phaser.Scene {
         colors.length > 1 ? Math.min(62, (endX - startX) / Math.max(1, colors.length - 1)) : 0;
       const x = startX + index * spacing;
       const selected = color.id === selectedId;
+      const locked = this.isLocked(slot, color.id);
+      const wardrobeItem = getWardrobeItemFor(slot, color.id);
       const circle = this.add
         .circle(x, 608, 25, color.color)
         .setStrokeStyle(selected ? 6 : 3, selected ? COLORS.ink : COLORS.panel, 1)
+        .setAlpha(locked ? 0.35 : 1)
         .setInteractive(new Phaser.Geom.Circle(0, 0, 32), Phaser.Geom.Circle.Contains);
 
       circle.on('pointerdown', () => {
+        if (locked) {
+          this.openShop(wardrobeItem?.id);
+          return;
+        }
         onSelect(color);
       });
 
       this.optionLayer.add(circle);
+      if (locked) {
+        this.optionLayer.add(this.createLockBadge(x, 608));
+      }
+    });
+  }
+
+  private updateLockedHint(): void {
+    this.lockedHint?.destroy();
+    this.lockedHint = undefined;
+    if (
+      !this.editMode ||
+      (this.category !== 'hair' && this.category !== 'outfit' && this.category !== 'accessory')
+    ) {
+      return;
+    }
+
+    this.lockedHint = this.add
+      .text(955, 128, text.appearance.lockedHint, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '17px',
+        color: COLORS.textMuted,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(4);
+  }
+
+  private visibleOptions<T extends { id: string }>(
+    slot: WardrobeSlot,
+    options: readonly T[],
+  ): readonly T[] {
+    return this.editMode ? options : options.filter((option) => this.isAvailable(slot, option.id));
+  }
+
+  private isAvailable(slot: WardrobeSlot, appearanceId: string): boolean {
+    if (!this.editMode) {
+      if (slot === 'eyes') {
+        return QUICK_START_EYES.includes(appearanceId);
+      }
+      if (slot === 'mouth') {
+        return QUICK_START_MOUTHS.includes(appearanceId);
+      }
+      return isFreeWardrobeOption(slot, appearanceId);
+    }
+    return !isWardrobeOptionLocked(slot, appearanceId, save.purchases);
+  }
+
+  private isLocked(slot: WardrobeSlot, appearanceId: string): boolean {
+    return this.editMode && isWardrobeOptionLocked(slot, appearanceId, save.purchases);
+  }
+
+  private buildLookPool(): LookPool {
+    const styleIds = (slot: WardrobeSlot, options: readonly StyleOption[]): string[] =>
+      options.filter((option) => this.isAvailable(slot, option.id)).map((option) => option.id);
+    const colorIds = (slot: WardrobeSlot, options: readonly ColorOption[]): string[] =>
+      options.filter((option) => this.isAvailable(slot, option.id)).map((option) => option.id);
+
+    return {
+      hair: styleIds('hair', HAIR_STYLES),
+      hairColor: colorIds('hairColor', HAIR_COLORS),
+      eyes: styleIds('eyes', EYE_STYLES),
+      mouth: styleIds('mouth', MOUTH_STYLES),
+      outfit: styleIds('outfit', OUTFIT_STYLES),
+      outfitColor: colorIds('outfitColor', OUTFIT_COLORS),
+      accessories: styleIds(
+        'accessory',
+        ACCESSORY_STYLES.filter((option) => option.id !== 'none'),
+      ),
+    };
+  }
+
+  private openShop(focusId?: string): void {
+    save.setPlayerLook(this.preview.currentLook);
+    this.scene.start(SCENE_KEYS.SHOP, {
+      tab: 'wardrobe',
+      origin: 'wardrobe',
+      focusId,
     });
   }
 
@@ -479,13 +649,29 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   private randomize(): void {
-    this.look = randomizeLook();
+    this.look = randomizeLook(Math, this.buildLookPool());
     save.setPlayerLook(this.look);
     this.preview.setLook(this.look);
     this.renderOptions();
   }
 
   private createFooter(): void {
+    if (this.editMode) {
+      new Button(this, {
+        x: 500,
+        y: 680,
+        label: text.appearance.shop,
+        iconKey: 'icon-shop',
+        iconSize: 26,
+        width: 190,
+        height: 68,
+        fontSize: 24,
+        color: COLORS.lavender,
+        textColor: COLORS.text,
+        onClick: () => this.openShop(),
+      });
+    }
+
     new Button(this, {
       x: 770,
       y: 680,

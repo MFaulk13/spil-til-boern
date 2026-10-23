@@ -46,23 +46,26 @@ export class ItemCard extends Phaser.GameObjects.Container {
 
     const compact = options.compact ?? false;
     const iconArea = Math.min(this.cardWidth * 0.56, this.cardHeight * 0.48);
+    const iconY = -this.cardHeight * 0.16;
     const iconPlate = scene.add.circle(
       0,
-      -this.cardHeight * 0.16,
+      iconY,
       Math.min(this.cardWidth, this.cardHeight) * 0.29,
       this.categoryColor,
       0.16,
     );
-    const icon = scene.add
-      .image(0, -this.cardHeight * 0.16, options.item.assetKey)
-      .setDisplaySize(
-        Math.min(iconArea, options.item.width),
-        Math.min(iconArea, options.item.height),
-      );
-    if (options.item.width > options.item.height) {
-      icon.setDisplaySize(iconArea, (iconArea * options.item.height) / options.item.width);
-    } else {
-      icon.setDisplaySize((iconArea * options.item.width) / options.item.height, iconArea);
+    const icon =
+      options.item.color !== undefined
+        ? scene.add
+            .circle(0, iconY, iconArea / 2, options.item.color)
+            .setStrokeStyle(4, COLORS.ink, 0.3)
+        : scene.add.image(0, iconY, options.item.assetKey);
+    if (icon instanceof Phaser.GameObjects.Image) {
+      if (options.item.width > options.item.height) {
+        icon.setDisplaySize(iconArea, (iconArea * options.item.height) / options.item.width);
+      } else {
+        icon.setDisplaySize((iconArea * options.item.width) / options.item.height, iconArea);
+      }
     }
 
     const label = scene.add

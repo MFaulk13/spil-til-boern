@@ -28,6 +28,9 @@ export const text = {
     titleEdit: 'Skift udseende',
     subtitleEdit: 'Vælg tøj og udseende',
     save: 'Gem',
+    shop: 'Butik',
+    lockedHint: 'Låste ting købes i butikken',
+    lockedPrice: (price: number) => `${price} hjerter`,
     categories: {
       gender: 'Køn',
       skin: 'Hud',
@@ -217,7 +220,7 @@ export const text = {
     town: 'By',
     decor: 'Indret',
     decorDone: 'Færdig',
-    wardrobe: 'Skab',
+    wardrobe: 'Tøj',
     pets: 'Dyr',
   },
   rooms: {
@@ -302,8 +305,9 @@ export const text = {
   },
   shop: {
     title: 'Butikken',
-    subtitle: 'Køb ting til dit hjem',
+    subtitle: 'Køb ting til hjemmet og dig',
     back: 'Til byen',
+    backWardrobe: 'Til skabet',
     buy: 'Køb',
     cancel: 'Nej',
     price: (price: number) => `${price} hjerter`,
@@ -312,6 +316,8 @@ export const text = {
     confirmBody: (price: number) => `Det koster ${price} hjerter.`,
     bought: (name: string) => `Du har købt ${name}!`,
     boughtAndWorn: (name: string) => `Du har købt ${name} og taget den på!`,
+    boughtAndWornWardrobe: (name: string) => `Du har købt ${name} og taget det på!`,
+    alreadyOwnedWardrobe: 'Du ejer den allerede. Skift den i skabet.',
     locked: (remaining: number, category: string) => `Lås op efter ${remaining} køb i ${category}`,
     notEnough: (missing: number) => `Du mangler ${missing} hjerter.`,
     adopt: 'Køb æg',
@@ -323,7 +329,8 @@ export const text = {
     categories: {
       furniture: 'Møbler',
       toy: 'Legetøj',
-      accessory: 'Tilbehør',
+      wardrobe: 'Tøj',
+      accessory: 'Dyrepynt',
       treat: 'Godbidder',
       pet: 'Kæledyr',
     },

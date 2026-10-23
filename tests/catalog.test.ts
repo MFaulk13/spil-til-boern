@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ASSET_MANIFEST, CORE_ASSETS, LAZY_ASSETS, LAZY_SCENE_ASSET_KEYS } from '@/game/assets';
 import {
   ACCESSORY_STYLES,
+  DEFAULT_LOOK,
   EYE_STYLES,
   GENDER_STYLES,
   HAIR_COLORS,
@@ -16,12 +17,22 @@ import {
   ITEMS,
   getItem,
   isItemUnlocked,
+  itemsByCategory,
   treatCount,
 } from '@/game/catalog/items';
+import { QUICK_START_EYES, QUICK_START_MOUTHS, wardrobeItemId } from '@/game/catalog/wardrobe';
 import { PETS, createPetState, getPet, pickNewPetName } from '@/game/catalog/pets';
 import { QUIZ_SUBJECT_INFO } from '@/game/catalog/quiz';
 import { ROOMS } from '@/game/catalog/rooms';
-import { createFullNeeds, ITEM_CATEGORIES, PET_IDS, ROOM_IDS, type RoomId } from '@/game/types';
+import { isFreeWardrobeOption } from '@/systems/wardrobe';
+import {
+  createFullNeeds,
+  ITEM_CATEGORIES,
+  PET_IDS,
+  ROOM_IDS,
+  type RoomId,
+  type WardrobeSlot,
+} from '@/game/types';
 
 const manifestKeys = new Set(ASSET_MANIFEST.map((asset) => asset.key));
 
@@ -78,6 +89,9 @@ describe('asset manifest', () => {
     }
 
     for (const item of ITEMS) {
+      if (item.color !== undefined) {
+        continue;
+      }
       expect(manifestKeys.has(item.assetKey), `missing item asset: ${item.assetKey}`).toBe(true);
     }
 
@@ -101,8 +115,13 @@ describe('item catalog', () => {
     for (const item of ITEMS) {
       expect(item.label.length).toBeGreaterThan(0);
       expect(Number.isFinite(item.price)).toBe(true);
-      expect(item.price).toBeGreaterThanOrEqual(5);
-      expect(item.price).toBeLessThanOrEqual(80);
+      if (item.category === 'wardrobe') {
+        expect(item.price).toBeGreaterThanOrEqual(0);
+        expect(item.price).toBeLessThanOrEqual(30);
+      } else {
+        expect(item.price).toBeGreaterThanOrEqual(5);
+        expect(item.price).toBeLessThanOrEqual(80);
+      }
       expect(getItem(item.id)).toBe(item);
     }
   });
@@ -181,6 +200,58 @@ describe('room catalog', () => {
 
     const targets = new Set<RoomId>(rooms.flatMap((room) => room.doors.map((door) => door.target)));
     expect(targets).toEqual(new Set<RoomId>(ROOM_IDS));
+  });
+});
+
+describe('wardrobe catalog', () => {
+  it('maps every hair, outfit, color and accessory option to a wardrobe item', () => {
+    const styleSlots: readonly (readonly [WardrobeSlot, readonly { id: string }[]])[] = [
+      ['hair', HAIR_STYLES],
+      ['hairColor', HAIR_COLORS],
+      ['outfit', OUTFIT_STYLES],
+      ['outfitColor', OUTFIT_COLORS],
+      ['accessory', ACCESSORY_STYLES.filter((option) => option.id !== 'none')],
+    ];
+
+    for (const [slot, options] of styleSlots) {
+      for (const option of options) {
+        const item = getItem(wardrobeItemId(slot, option.id));
+        expect(item, `${slot}:${option.id}`).toBeDefined();
+        expect(item?.category).toBe('wardrobe');
+        expect(item?.wardrobeSlot).toBe(slot);
+        expect(item?.appearanceId).toBe(option.id);
+      }
+    }
+  });
+
+  it('has a small free starter set', () => {
+    const freeCount = (slot: WardrobeSlot, options: readonly { id: string }[]): number =>
+      options.filter((option) => isFreeWardrobeOption(slot, option.id)).length;
+
+    expect(freeCount('hair', HAIR_STYLES)).toBe(3);
+    expect(freeCount('hairColor', HAIR_COLORS)).toBe(4);
+    expect(freeCount('outfit', OUTFIT_STYLES)).toBe(3);
+    expect(freeCount('outfitColor', OUTFIT_COLORS)).toBe(4);
+    expect(freeCount('accessory', ACCESSORY_STYLES)).toBe(3);
+    expect(QUICK_START_EYES).toHaveLength(3);
+    expect(QUICK_START_MOUTHS).toHaveLength(3);
+  });
+
+  it('keeps the default look free and in the quick start', () => {
+    expect(isFreeWardrobeOption('hair', DEFAULT_LOOK.hair)).toBe(true);
+    expect(isFreeWardrobeOption('hairColor', DEFAULT_LOOK.hairColor)).toBe(true);
+    expect(isFreeWardrobeOption('outfit', DEFAULT_LOOK.outfit)).toBe(true);
+    expect(isFreeWardrobeOption('outfitColor', DEFAULT_LOOK.outfitColor)).toBe(true);
+    expect(DEFAULT_LOOK.accessory).toBeNull();
+    expect(QUICK_START_EYES).toContain(DEFAULT_LOOK.eyes);
+    expect(QUICK_START_MOUTHS).toContain(DEFAULT_LOOK.mouth);
+  });
+
+  it('has 47 paid wardrobe items with balanced prices', () => {
+    const paid = itemsByCategory('wardrobe').filter((item) => item.price > 0);
+    expect(paid).toHaveLength(47);
+    expect(Math.min(...paid.map((item) => item.price))).toBeGreaterThanOrEqual(5);
+    expect(Math.max(...paid.map((item) => item.price))).toBeLessThanOrEqual(30);
   });
 });
 
