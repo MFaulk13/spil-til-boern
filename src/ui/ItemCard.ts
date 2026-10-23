@@ -71,7 +71,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
     const label = scene.add
       .text(0, this.cardHeight * 0.2, options.item.label, {
         fontFamily: FONT_FAMILY,
-        fontSize: compact ? '17px' : '23px',
+        fontSize: compact ? '19px' : '25px',
         color: COLORS.text,
         fontStyle: 'bold',
         align: 'center',
@@ -85,7 +85,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.priceText = scene.add
       .text(-2, this.cardHeight * 0.38, text.shop.price(options.item.price), {
         fontFamily: FONT_FAMILY,
-        fontSize: compact ? '15px' : '19px',
+        fontSize: compact ? '17px' : '21px',
         color: COLORS.textMuted,
       })
       .setOrigin(0, 0.5);
@@ -97,7 +97,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
     const lockText = scene.add
       .text(-2, this.cardHeight * 0.38, options.lockLabel ?? '', {
         fontFamily: FONT_FAMILY,
-        fontSize: compact ? '13px' : '16px',
+        fontSize: compact ? '15px' : '18px',
         color: COLORS.textAccent,
         fontStyle: 'bold',
         align: 'center',
@@ -115,7 +115,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.ownedText = scene.add
       .text(0, 0, '0', {
         fontFamily: FONT_FAMILY,
-        fontSize: '17px',
+        fontSize: '18px',
         color: COLORS.textDark,
         fontStyle: 'bold',
       })

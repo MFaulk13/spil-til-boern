@@ -16,6 +16,9 @@ export interface ButtonOptions {
   fontSize?: number;
   iconKey?: string;
   iconSize?: number;
+  wrapWidth?: number;
+  lineSpacing?: number;
+  hitPadding?: number;
 }
 
 export class Button extends Phaser.GameObjects.Container {
@@ -58,6 +61,11 @@ export class Button extends Phaser.GameObjects.Container {
         fontSize: `${options.fontSize ?? 40}px`,
         color: options.textColor ?? COLORS.textDark,
         fontStyle: 'bold',
+        align: 'center',
+        lineSpacing: options.lineSpacing ?? 0,
+        ...(options.wrapWidth !== undefined
+          ? { wordWrap: { width: options.wrapWidth, useAdvancedWrap: true } }
+          : {}),
       })
       .setOrigin(0.5);
 
@@ -74,8 +82,14 @@ export class Button extends Phaser.GameObjects.Container {
 
     this.add(this.labelText);
     this.setSize(this.buttonWidth, this.buttonHeight);
+    const hitPadding = Math.max(0, options.hitPadding ?? 0);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, this.buttonWidth, this.buttonHeight),
+      new Phaser.Geom.Rectangle(
+        -hitPadding,
+        -hitPadding,
+        this.buttonWidth + hitPadding * 2,
+        this.buttonHeight + hitPadding * 2,
+      ),
       Phaser.Geom.Rectangle.Contains,
     );
 

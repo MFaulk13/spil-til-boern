@@ -234,7 +234,7 @@ export class ParkScene extends Phaser.Scene {
       });
     }
 
-    container.setInteractive(new Phaser.Geom.Circle(0, -18, 54), Phaser.Geom.Circle.Contains);
+    container.setInteractive(new Phaser.Geom.Circle(0, -18, 66), Phaser.Geom.Circle.Contains);
     container.on('pointerup', () => this.startBallFetch());
     return container;
   }
@@ -269,7 +269,7 @@ export class ParkScene extends Phaser.Scene {
     }
 
     const zone = this.add
-      .zone(TOY_BOX_POS.x, TOY_BOX_POS.y - 12, 190, 180)
+      .zone(TOY_BOX_POS.x, TOY_BOX_POS.y - 12, 214, 200)
       .setDepth(TOY_BOX_POS.y + 1)
       .setInteractive();
     zone.on('pointerup', () => this.openToyBox());
@@ -341,7 +341,7 @@ export class ParkScene extends Phaser.Scene {
     }
 
     const zone = this.add
-      .zone(BUBBLE_POS.x, BUBBLE_POS.y - 8, 190, 190)
+      .zone(BUBBLE_POS.x, BUBBLE_POS.y - 8, 214, 210)
       .setDepth(BUBBLE_POS.y + 1)
       .setInteractive();
     zone.on('pointerup', () => this.blowBubbles());
@@ -382,7 +382,7 @@ export class ParkScene extends Phaser.Scene {
       .setDepth(650);
 
     const zone = this.add
-      .zone(POND_POS.x, POND_POS.y, 310, 140)
+      .zone(POND_POS.x, POND_POS.y, 340, 160)
       .setDepth(POND_POS.y + 10)
       .setInteractive();
     zone.on('pointerup', () => this.callDucks());
@@ -415,7 +415,7 @@ export class ParkScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-G', () => this.callDucks());
 
     const zone = this.add
-      .zone(GAME_WIDTH / 2, 545, GAME_WIDTH, 150)
+      .zone(GAME_WIDTH / 2, 545, GAME_WIDTH, 170)
       .setDepth(1)
       .setInteractive();
     zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -758,7 +758,7 @@ export class ParkScene extends Phaser.Scene {
       const orb = this.add.circle(0, 0, radius, 0xd8f4ff, 0.6).setStrokeStyle(3, 0xffffff, 0.95);
       const shine = this.add.circle(-radius * 0.3, -radius * 0.3, radius * 0.24, 0xffffff, 0.85);
       bubble.add([orb, shine]);
-      bubble.setInteractive(new Phaser.Geom.Circle(0, 0, radius + 10), Phaser.Geom.Circle.Contains);
+      bubble.setInteractive(new Phaser.Geom.Circle(0, 0, radius + 20), Phaser.Geom.Circle.Contains);
       bubble.on('pointerup', () => {
         if (!bubble.active) {
           return;

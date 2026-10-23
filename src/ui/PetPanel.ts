@@ -74,9 +74,9 @@ export class PetPanel extends Phaser.GameObjects.Container {
       label: text.petsPanel.shop,
       iconKey: 'icon-shop',
       iconSize: 26,
-      width: 280,
-      height: 72,
-      fontSize: 24,
+      width: 290,
+      height: 80,
+      fontSize: 25,
       color: COLORS.teal,
       textColor: COLORS.text,
       onClick: onShop,
@@ -86,9 +86,9 @@ export class PetPanel extends Phaser.GameObjects.Container {
       x: 160,
       y: PANEL_HEIGHT / 2 - 56,
       label: text.petsPanel.close,
-      width: 240,
-      height: 72,
-      fontSize: 24,
+      width: 250,
+      height: 80,
+      fontSize: 25,
       color: COLORS.panelLight,
       textColor: COLORS.text,
       onClick: onClose,
@@ -142,9 +142,9 @@ export class PetPanel extends Phaser.GameObjects.Container {
         x: -PANEL_WIDTH / 2 + 82,
         y: PANEL_HEIGHT / 2 - 56,
         label: '<',
-        width: 64,
-        height: 60,
-        fontSize: 26,
+        width: 72,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -156,9 +156,9 @@ export class PetPanel extends Phaser.GameObjects.Container {
         x: PANEL_WIDTH / 2 - 82,
         y: PANEL_HEIGHT / 2 - 56,
         label: '>',
-        width: 64,
-        height: 60,
-        fontSize: 26,
+        width: 72,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -209,7 +209,7 @@ export class PetPanel extends Phaser.GameObjects.Container {
     const species = this.scene.add
       .text(-14, 18, definition.label, {
         fontFamily: FONT_FAMILY,
-        fontSize: '18px',
+        fontSize: '20px',
         color: COLORS.textMuted,
       })
       .setOrigin(0, 0.5);
@@ -217,7 +217,7 @@ export class PetPanel extends Phaser.GameObjects.Container {
     const status = this.scene.add
       .text(CARD_WIDTH / 2 - 18, -CARD_HEIGHT / 2 + 20, active ? text.petsPanel.active : '', {
         fontFamily: FONT_FAMILY,
-        fontSize: '15px',
+        fontSize: '17px',
         color: COLORS.textAccent,
         fontStyle: 'bold',
       })

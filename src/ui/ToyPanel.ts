@@ -58,7 +58,7 @@ export class ToyPanel extends Phaser.GameObjects.Container {
     const subtitle = scene.add
       .text(0, -PANEL_HEIGHT / 2 + 84, text.park.toysSubtitle, {
         fontFamily: FONT_FAMILY,
-        fontSize: '21px',
+        fontSize: '23px',
         color: COLORS.textMuted,
       })
       .setOrigin(0.5);
@@ -69,9 +69,9 @@ export class ToyPanel extends Phaser.GameObjects.Container {
       x: 0,
       y: PANEL_HEIGHT / 2 - 54,
       label: text.park.close,
-      width: 220,
-      height: 70,
-      fontSize: 24,
+      width: 230,
+      height: 80,
+      fontSize: 25,
       color: COLORS.panelLight,
       textColor: COLORS.text,
       onClick: onClose,
@@ -134,9 +134,9 @@ export class ToyPanel extends Phaser.GameObjects.Container {
         x: -PANEL_WIDTH / 2 + 78,
         y: PANEL_HEIGHT / 2 - 54,
         label: '<',
-        width: 66,
-        height: 60,
-        fontSize: 26,
+        width: 72,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -148,9 +148,9 @@ export class ToyPanel extends Phaser.GameObjects.Container {
         x: PANEL_WIDTH / 2 - 78,
         y: PANEL_HEIGHT / 2 - 54,
         label: '>',
-        width: 66,
-        height: 60,
-        fontSize: 26,
+        width: 72,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -161,7 +161,7 @@ export class ToyPanel extends Phaser.GameObjects.Container {
       const pageText = this.scene.add
         .text(0, PANEL_HEIGHT / 2 - 104, `${this.page + 1} / ${pages}`, {
           fontFamily: FONT_FAMILY,
-          fontSize: '20px',
+          fontSize: '22px',
           color: COLORS.textMuted,
         })
         .setOrigin(0.5);

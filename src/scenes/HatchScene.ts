@@ -304,8 +304,8 @@ export class HatchScene extends Phaser.Scene {
   }
 
   private showNamePanel(): void {
-    const panelWidth = 520;
-    const panelHeight = 424;
+    const panelWidth = 540;
+    const panelHeight = 440;
     const centerX = 900;
     const centerY = 400;
 
@@ -344,12 +344,12 @@ export class HatchScene extends Phaser.Scene {
         },
       );
       const button = new Button(this, {
-        x: column === 0 ? -118 : 118,
-        y: -86 + row * 72,
+        x: column === 0 ? -124 : 124,
+        y: -96 + row * 82,
         label: name,
-        width: 210,
-        height: 58,
-        fontSize: 21,
+        width: 218,
+        height: 72,
+        fontSize: 23,
         color: name === this.selectedName ? COLORS.accent : COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => this.selectName(name),
@@ -360,11 +360,11 @@ export class HatchScene extends Phaser.Scene {
 
     const done = new Button(this, {
       x: 0,
-      y: panelHeight / 2 - 58,
+      y: panelHeight / 2 - 60,
       label: text.hatch.done,
-      width: 260,
-      height: 64,
-      fontSize: 28,
+      width: 270,
+      height: 76,
+      fontSize: 29,
       color: COLORS.primary,
       onClick: () => this.finishHatch(),
     });

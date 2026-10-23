@@ -4,9 +4,9 @@ import { clampNeed, type CareNeed } from '@/game/types';
 import { isReducedMotion } from '@/systems/motion';
 import { COLORS, FONT_FAMILY, NEED_COLORS } from '@/ui/theme';
 
-const ICON_SIZE = 30;
-const BAR_LEFT = 36;
-const BAR_HEIGHT = 22;
+const ICON_SIZE = 34;
+const BAR_LEFT = 42;
+const BAR_HEIGHT = 26;
 const BAR_INSET = 3;
 const RADIUS = 8;
 
@@ -44,7 +44,7 @@ export class NeedBar extends Phaser.GameObjects.Container {
       scene.add
         .text(BAR_LEFT, -26, text.needs[need], {
           fontFamily: FONT_FAMILY,
-          fontSize: '17px',
+          fontSize: '19px',
           color: COLORS.textMuted,
           fontStyle: 'bold',
         })

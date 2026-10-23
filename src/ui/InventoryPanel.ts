@@ -70,9 +70,9 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
       label: text.placement.remove,
       iconKey: 'icon-trash',
       iconSize: 30,
-      width: 290,
-      height: 68,
-      fontSize: 24,
+      width: 300,
+      height: 80,
+      fontSize: 25,
       color: COLORS.primary,
       onClick: onRemove,
     });
@@ -128,9 +128,9 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
         x: -86,
         y: 132,
         label: '<',
-        width: 76,
-        height: 56,
-        fontSize: 26,
+        width: 82,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -142,9 +142,9 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
         x: 86,
         y: 132,
         label: '>',
-        width: 76,
-        height: 56,
-        fontSize: 26,
+        width: 82,
+        height: 72,
+        fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => {
@@ -155,7 +155,7 @@ export class InventoryPanel extends Phaser.GameObjects.Container {
       const pageText = this.scene.add
         .text(0, 132, `${this.page + 1} / ${pages}`, {
           fontFamily: FONT_FAMILY,
-          fontSize: '20px',
+          fontSize: '22px',
           color: COLORS.textMuted,
         })
         .setOrigin(0.5);

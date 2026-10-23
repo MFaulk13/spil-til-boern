@@ -38,6 +38,11 @@ export const text = {
     startOver: 'Start forfra',
     current: (name: string) => `Spiller: ${name}`,
   },
+  mobile: {
+    rotateTitle: 'Drej telefonen',
+    rotateBody:
+      'Gotar spilles bedst, når telefonen ligger ned. Drej den, så spillet fylder hele skærmen.',
+  },
   appearance: {
     title: 'Lav din figur',
     subtitle: 'Vælg dit udseende',

@@ -47,7 +47,7 @@ export class PetCard extends Phaser.GameObjects.Container {
     const price = scene.add
       .text(-this.cardWidth * 0.5 + 148, 24, text.shop.price(options.price), {
         fontFamily: FONT_FAMILY,
-        fontSize: '19px',
+        fontSize: '21px',
         color: options.affordable ? COLORS.textMuted : COLORS.textAccent,
       })
       .setOrigin(0, 0.5);
@@ -55,7 +55,7 @@ export class PetCard extends Phaser.GameObjects.Container {
     const owned = scene.add
       .text(this.cardWidth * 0.5 - 18, -this.cardHeight * 0.5 + 20, `× ${options.owned}`, {
         fontFamily: FONT_FAMILY,
-        fontSize: '17px',
+        fontSize: '18px',
         color: COLORS.text,
         fontStyle: 'bold',
         backgroundColor: '#d8f1ec',
@@ -67,7 +67,7 @@ export class PetCard extends Phaser.GameObjects.Container {
     const action = scene.add
       .text(this.cardWidth * 0.5 - 18, this.cardHeight * 0.5 - 22, text.shop.adopt, {
         fontFamily: FONT_FAMILY,
-        fontSize: '18px',
+        fontSize: '20px',
         color: COLORS.textAccent,
         fontStyle: 'bold',
       })

@@ -118,9 +118,9 @@ export class CharacterScene extends Phaser.Scene {
       x: GAME_WIDTH - 118,
       y: 70,
       label: text.back,
-      width: 170,
-      height: 64,
-      fontSize: 24,
+      width: 176,
+      height: 72,
+      fontSize: 25,
       color: COLORS.panelLight,
       textColor: COLORS.text,
       onClick: () => this.goBack(),
@@ -157,10 +157,11 @@ export class CharacterScene extends Phaser.Scene {
         y: 172,
         label: text.appearance.categories[category],
         width: 70,
-        height: 64,
+        height: 70,
         fontSize: 16,
         color: COLORS.panelLight,
         textColor: COLORS.text,
+        hitPadding: 3,
         onClick: () => this.setCategory(category),
       });
       this.tabs.set(category, button);
@@ -550,7 +551,7 @@ export class CharacterScene extends Phaser.Scene {
         .circle(x, 608, 25, color.color)
         .setStrokeStyle(selected ? 6 : 3, selected ? COLORS.ink : COLORS.panel, 1)
         .setAlpha(locked ? 0.35 : 1)
-        .setInteractive(new Phaser.Geom.Circle(0, 0, 32), Phaser.Geom.Circle.Contains);
+        .setInteractive(new Phaser.Geom.Circle(0, 0, 25), Phaser.Geom.Circle.Contains);
 
       circle.on('pointerdown', () => {
         if (locked) {
@@ -659,12 +660,12 @@ export class CharacterScene extends Phaser.Scene {
     if (this.editMode) {
       new Button(this, {
         x: 500,
-        y: 680,
+        y: 672,
         label: text.appearance.shop,
         iconKey: 'icon-shop',
         iconSize: 26,
         width: 190,
-        height: 68,
+        height: 76,
         fontSize: 24,
         color: COLORS.lavender,
         textColor: COLORS.text,
@@ -674,10 +675,10 @@ export class CharacterScene extends Phaser.Scene {
 
     new Button(this, {
       x: 770,
-      y: 680,
+      y: 672,
       label: text.random,
       width: 230,
-      height: 68,
+      height: 76,
       fontSize: 24,
       color: COLORS.teal,
       onClick: () => this.randomize(),
@@ -685,10 +686,10 @@ export class CharacterScene extends Phaser.Scene {
 
     new Button(this, {
       x: 1110,
-      y: 680,
+      y: 672,
       label: this.editMode ? text.appearance.save : text.next,
       width: 250,
-      height: 68,
+      height: 76,
       fontSize: 28,
       color: COLORS.primary,
       onClick: () => this.goNext(),

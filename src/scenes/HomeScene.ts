@@ -142,7 +142,7 @@ export class HomeScene extends Phaser.Scene {
     this.petView.startIdle();
     this.petView.setDepth(this.room.spawn.y + 1);
     this.petView.setInteractive(
-      new Phaser.Geom.Ellipse(0, -76, 150, 176),
+      new Phaser.Geom.Ellipse(0, -82, 190, 204),
       Phaser.Geom.Ellipse.Contains,
     );
     this.petView.on('pointerdown', () => this.handleCare('pet'));
@@ -596,16 +596,16 @@ export class HomeScene extends Phaser.Scene {
       const label = this.add
         .text(14, 0, door.label, {
           fontFamily: FONT_FAMILY,
-          fontSize: '20px',
+          fontSize: '22px',
           color: COLORS.text,
           fontStyle: 'bold',
         })
         .setOrigin(0.5);
 
       container.add([background, icon, label]);
-      container.setSize(196, 68);
+      container.setSize(208, 80);
       container.setInteractive(
-        new Phaser.Geom.Rectangle(0, 0, 196, 68),
+        new Phaser.Geom.Rectangle(0, 0, 208, 80),
         Phaser.Geom.Rectangle.Contains,
       );
       container.on('pointerup', () => this.switchRoom(door.target));
@@ -1053,7 +1053,7 @@ export class HomeScene extends Phaser.Scene {
 
     container.add(graphics);
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-58, -86, 116, 96),
+      new Phaser.Geom.Rectangle(-72, -96, 144, 116),
       Phaser.Geom.Rectangle.Contains,
     );
     container.on('pointerdown', () => this.handleCare('feed'));
@@ -1080,7 +1080,7 @@ export class HomeScene extends Phaser.Scene {
 
     container.add(graphics);
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-52, -84, 104, 94),
+      new Phaser.Geom.Rectangle(-64, -94, 128, 114),
       Phaser.Geom.Rectangle.Contains,
     );
     container.on('pointerdown', () => this.handleCare('play'));
@@ -1102,7 +1102,7 @@ export class HomeScene extends Phaser.Scene {
 
     container.add(graphics);
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-70, -82, 140, 94),
+      new Phaser.Geom.Rectangle(-84, -92, 168, 114),
       Phaser.Geom.Rectangle.Contains,
     );
     container.on('pointerdown', () => this.handleCare('sleep'));
@@ -1124,7 +1124,7 @@ export class HomeScene extends Phaser.Scene {
     const title = this.add
       .text(-width / 2 + 92, -22, text.tutorial.feed, {
         fontFamily: FONT_FAMILY,
-        fontSize: '24px',
+        fontSize: '26px',
         color: COLORS.text,
         fontStyle: 'bold',
       })
@@ -1132,7 +1132,7 @@ export class HomeScene extends Phaser.Scene {
     const hint = this.add
       .text(-width / 2 + 92, 12, text.tutorial.feedHint, {
         fontFamily: FONT_FAMILY,
-        fontSize: '20px',
+        fontSize: '22px',
         color: COLORS.textMuted,
       })
       .setOrigin(0, 0.5);
@@ -1237,7 +1237,7 @@ export class HomeScene extends Phaser.Scene {
     const label = this.add
       .text(-width / 2 + 74, 0, text.home.hint, {
         fontFamily: FONT_FAMILY,
-        fontSize: '21px',
+        fontSize: '23px',
         color: COLORS.textMuted,
       })
       .setOrigin(0, 0.5);
@@ -1293,7 +1293,7 @@ export class HomeScene extends Phaser.Scene {
     const message = this.add
       .text(0, 0, text.home.greeting(petName), {
         fontFamily: FONT_FAMILY,
-        fontSize: '24px',
+        fontSize: '26px',
         color: COLORS.text,
         align: 'center',
         wordWrap: { width: width - 56 },
@@ -1418,7 +1418,7 @@ export class HomeScene extends Phaser.Scene {
     const bubble = this.add
       .text(this.petView.x, this.petView.y - 170, message, {
         fontFamily: FONT_FAMILY,
-        fontSize: '22px',
+        fontSize: '24px',
         color: COLORS.text,
         backgroundColor: '#fff8ee',
         padding: { x: 16, y: 10 },

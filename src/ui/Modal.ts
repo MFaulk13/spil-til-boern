@@ -13,8 +13,8 @@ export interface ConfirmDialogOptions {
   onCancel?: () => void;
 }
 
-const PANEL_WIDTH = 760;
-const PANEL_HEIGHT = 380;
+const PANEL_WIDTH = 780;
+const PANEL_HEIGHT = 400;
 
 export class ConfirmDialog extends Phaser.GameObjects.Container {
   private keyHandler?: (event: KeyboardEvent) => void;
@@ -50,7 +50,7 @@ export class ConfirmDialog extends Phaser.GameObjects.Container {
     const body = scene.add
       .text(0, -18, options.body, {
         fontFamily: FONT_FAMILY,
-        fontSize: '28px',
+        fontSize: '30px',
         color: COLORS.textMuted,
         align: 'center',
         wordWrap: { width: PANEL_WIDTH - 120 },
@@ -61,8 +61,8 @@ export class ConfirmDialog extends Phaser.GameObjects.Container {
       x: -170,
       y: PANEL_HEIGHT / 2 - 88,
       label: options.confirmLabel,
-      width: 280,
-      height: 84,
+      width: 290,
+      height: 96,
       fontSize: 32,
       color: COLORS.primary,
       onClick: () => this.close(options.onConfirm),
@@ -72,8 +72,8 @@ export class ConfirmDialog extends Phaser.GameObjects.Container {
       x: 170,
       y: PANEL_HEIGHT / 2 - 88,
       label: options.cancelLabel,
-      width: 280,
-      height: 84,
+      width: 290,
+      height: 96,
       fontSize: 32,
       color: COLORS.panelLight,
       textColor: COLORS.text,

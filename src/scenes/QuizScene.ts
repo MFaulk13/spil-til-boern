@@ -33,9 +33,9 @@ interface AnswerButton {
 }
 
 const ANSWER_WIDTH = 720;
-const ANSWER_HEIGHT = 80;
+const ANSWER_HEIGHT = 92;
 const ANSWER_START_Y = 420;
-const ANSWER_GAP = 96;
+const ANSWER_GAP = 104;
 
 export class QuizScene extends Phaser.Scene {
   private subject: QuizSubject = 'math';
@@ -200,7 +200,7 @@ export class QuizScene extends Phaser.Scene {
     this.feedbackText = this.add
       .text(GAME_WIDTH / 2, 340, '', {
         fontFamily: FONT_FAMILY,
-        fontSize: '20px',
+        fontSize: '22px',
         color: COLORS.textAccent,
         fontStyle: 'bold',
         align: 'center',
@@ -251,7 +251,7 @@ export class QuizScene extends Phaser.Scene {
         label: option.label,
         width: ANSWER_WIDTH,
         height: ANSWER_HEIGHT,
-        fontSize: 28,
+        fontSize: 30,
         color: COLORS.panelLight,
         textColor: COLORS.text,
         onClick: () => this.answer(index),
@@ -544,9 +544,9 @@ export class QuizScene extends Phaser.Scene {
       x: -150,
       y: 90,
       label: text.quiz.playAgain,
-      width: 260,
-      height: 76,
-      fontSize: 26,
+      width: 270,
+      height: 84,
+      fontSize: 27,
       color: COLORS.teal,
       textColor: COLORS.text,
       onClick: () => this.scene.restart({ subject: this.subject }),
@@ -556,9 +556,9 @@ export class QuizScene extends Phaser.Scene {
       x: 150,
       y: 90,
       label: text.quiz.toSchool,
-      width: 260,
-      height: 76,
-      fontSize: 26,
+      width: 270,
+      height: 84,
+      fontSize: 27,
       color: COLORS.primary,
       onClick: () => this.goBack(),
     });
