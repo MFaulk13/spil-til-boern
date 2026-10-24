@@ -54,6 +54,18 @@ export function getRendererMode(options: DeviceQuery = {}): RendererMode {
   return 'auto';
 }
 
+export function getMaxTextures(options: DeviceQuery = {}): number {
+  const params = new URLSearchParams(getSearch(options.search));
+  const raw = params.get('maxtextures');
+  if (raw !== null) {
+    const value = Number.parseInt(raw, 10);
+    if (Number.isFinite(value) && value >= 1 && value <= 64) {
+      return value;
+    }
+  }
+  return isLowMemoryMode(options) ? 1 : -1;
+}
+
 export function describeWebGL(gl: WebGLRenderingContext | null): string {
   if (!gl) {
     return 'ingen WebGL-kontekst';
@@ -67,6 +79,7 @@ export function describeWebGL(gl: WebGLRenderingContext | null): string {
     ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
     : 'ukendt GPU';
   const maxTextureSize = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE));
+  const textureUnits = Number(gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS));
 
-  return `${vendor} / ${renderer} (max tekstur ${maxTextureSize})`;
+  return `${vendor} / ${renderer} (max tekstur ${maxTextureSize}, ${textureUnits} teksturenheder)`;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getRasterSize, type AssetEntry } from '@/game/assets';
-import { getRendererMode, isLegacyFirefox, isLowMemoryMode } from '@/game/device';
+import { getMaxTextures, getRendererMode, isLegacyFirefox, isLowMemoryMode } from '@/game/device';
 
 const FIREFOX_115 =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:115.0) Gecko/20100101 Firefox/115.0';
@@ -28,6 +28,18 @@ describe('device detection', () => {
     expect(getRendererMode({ search: '?renderer=canvas' })).toBe('canvas');
     expect(getRendererMode({ search: '?renderer=webgl' })).toBe('webgl');
     expect(getRendererMode({ search: '' })).toBe('auto');
+  });
+
+  it('uses a single texture unit in low-memory mode', () => {
+    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '' })).toBe(1);
+    expect(getMaxTextures({ userAgent: FIREFOX_138, search: '' })).toBe(-1);
+  });
+
+  it('parses the maxtextures override', () => {
+    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '?maxtextures=4' })).toBe(4);
+    expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=16' })).toBe(16);
+    expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=0' })).toBe(-1);
+    expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=abc' })).toBe(-1);
   });
 });
 

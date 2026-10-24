@@ -65,6 +65,10 @@ export class PreloadScene extends Phaser.Scene {
 
     console.warn('[gotar] renderer', isWebGL ? 'webgl' : 'canvas');
     console.warn('[gotar] GPU', describeWebGL(gl));
+    console.warn(
+      '[gotar] maxTextures',
+      isWebGL ? (renderer as Phaser.Renderer.WebGL.WebGLRenderer).maxTextures : 'canvas',
+    );
     console.warn('[gotar] lowmem', isLowMemoryMode());
 
     const missing = CORE_ASSETS.filter((asset) => !this.textures.exists(asset.key));
