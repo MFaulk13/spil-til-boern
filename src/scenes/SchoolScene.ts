@@ -210,7 +210,7 @@ export class SchoolScene extends Phaser.Scene {
     card.add([background, icon, title, hint, stars, stats, playPill, playText]);
     card.setSize(CARD_WIDTH, CARD_HEIGHT);
     card.setInteractive(
-      new Phaser.Geom.Rectangle(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT),
+      new Phaser.Geom.Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT),
       Phaser.Geom.Rectangle.Contains,
     );
     card.on('pointerup', () => this.startQuiz(info.subject));
