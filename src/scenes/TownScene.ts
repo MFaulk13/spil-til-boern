@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadMissingAssets } from '@/game/assets';
+import { loadMissingAssets } from '@/game/assetLoader';
 import { PARK_BADGE_IDS } from '@/game/catalog/park';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';

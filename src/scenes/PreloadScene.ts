@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
+import { logLoaderErrors, queueSvgAsset } from '@/game/assetLoader';
 import { CORE_ASSETS } from '@/game/assets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
+import { describeWebGL, isLowMemoryMode } from '@/game/device';
 import { text } from '@/game/text';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -14,14 +16,70 @@ export class PreloadScene extends Phaser.Scene {
 
   preload(): void {
     this.createLoadingUi();
+    logLoaderErrors(this.load);
 
+    const lowMemory = isLowMemoryMode();
     for (const asset of CORE_ASSETS) {
-      this.load.svg(asset.key, asset.url, { width: asset.width, height: asset.height });
+      queueSvgAsset(this.load, asset, lowMemory);
     }
   }
 
   create(): void {
+    void this.finishLoading();
+  }
+
+  private async finishLoading(): Promise<void> {
+    await this.ensureTexturesReady();
+    this.logDiagnostics();
     this.scene.start(SCENE_KEYS.PROFILE);
+  }
+
+  private async ensureTexturesReady(): Promise<void> {
+    for (const asset of CORE_ASSETS) {
+      if (!this.textures.exists(asset.key)) {
+        continue;
+      }
+
+      const texture = this.textures.get(asset.key);
+      const source = texture.getSourceImage();
+      if (!(source instanceof HTMLImageElement)) {
+        continue;
+      }
+
+      if (typeof source.decode === 'function') {
+        await source.decode().catch(() => undefined);
+      }
+
+      const textureSource = texture.source[0];
+      if (!textureSource || textureSource.width === 0 || textureSource.height === 0) {
+        this.textures.remove(asset.key);
+        this.textures.addImage(asset.key, source);
+      }
+    }
+  }
+
+  private logDiagnostics(): void {
+    const renderer = this.game.renderer;
+    const isWebGL = renderer.type === Phaser.WEBGL;
+    const gl = isWebGL ? (renderer as Phaser.Renderer.WebGL.WebGLRenderer).gl : null;
+
+    console.warn('[gotar] renderer', isWebGL ? 'webgl' : 'canvas');
+    console.warn('[gotar] GPU', describeWebGL(gl));
+    console.warn('[gotar] lowmem', isLowMemoryMode());
+
+    const missing = CORE_ASSETS.filter((asset) => !this.textures.exists(asset.key));
+    if (missing.length > 0) {
+      console.warn('[gotar] manglende teksturer', missing.map((asset) => asset.key).join(', '));
+    }
+
+    const bytes = CORE_ASSETS.reduce((total, asset) => {
+      if (!this.textures.exists(asset.key)) {
+        return total;
+      }
+      const source = this.textures.get(asset.key).source[0];
+      return total + (source ? source.width * source.height * 4 : 0);
+    }, 0);
+    console.warn('[gotar] teksturer', `${(bytes / 1048576).toFixed(1)} MB`);
   }
 
   private createLoadingUi(): void {

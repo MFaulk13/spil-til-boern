@@ -1,4 +1,3 @@
-import type Phaser from 'phaser';
 import accessoryBackpackUrl from '@/assets/character/accessory-backpack.svg';
 import accessoryBeanieUrl from '@/assets/character/accessory-beanie.svg';
 import accessoryBowUrl from '@/assets/character/accessory-bow.svg';
@@ -190,27 +189,46 @@ import iconTapUrl from '@/assets/ui/icon-tap.svg';
 import iconTrashUrl from '@/assets/ui/icon-trash.svg';
 import iconReligionUrl from '@/assets/ui/icon-religion.svg';
 
+export type AssetKind = 'character' | 'pet' | 'egg' | 'icon' | 'item' | 'scene';
+
 export interface AssetEntry {
   key: string;
   url: string;
   width: number;
   height: number;
+  kind?: AssetKind;
 }
 
 function character(key: string, url: string): AssetEntry {
-  return { key, url, width: 384, height: 384 };
+  return { key, url, width: 384, height: 384, kind: 'character' };
 }
 
 function pet(key: string, url: string): AssetEntry {
-  return { key, url, width: 384, height: 384 };
+  return { key, url, width: 384, height: 384, kind: 'pet' };
 }
 
 function egg(key: string, url: string): AssetEntry {
-  return { key, url, width: 256, height: 320 };
+  return { key, url, width: 256, height: 320, kind: 'egg' };
 }
 
 function icon(key: string, url: string): AssetEntry {
-  return { key, url, width: 96, height: 96 };
+  return { key, url, width: 96, height: 96, kind: 'icon' };
+}
+
+const LOW_MEMORY_SIZES: Partial<Record<AssetKind, { width: number; height: number }>> = {
+  character: { width: 256, height: 256 },
+  pet: { width: 256, height: 256 },
+  egg: { width: 192, height: 240 },
+};
+
+export function getRasterSize(
+  asset: AssetEntry,
+  lowMemory: boolean,
+): { width: number; height: number } {
+  if (!lowMemory || !asset.kind) {
+    return { width: asset.width, height: asset.height };
+  }
+  return LOW_MEMORY_SIZES[asset.kind] ?? { width: asset.width, height: asset.height };
 }
 
 export const ASSET_MANIFEST: readonly AssetEntry[] = [
@@ -429,23 +447,3 @@ export const LAZY_ASSETS: readonly AssetEntry[] = ASSET_MANIFEST.filter((asset) 
 export const CORE_ASSETS: readonly AssetEntry[] = ASSET_MANIFEST.filter(
   (asset) => !(LAZY_SCENE_ASSET_KEYS as readonly string[]).includes(asset.key),
 );
-
-export function loadMissingAssets(
-  loader: Phaser.Loader.LoaderPlugin,
-  textures: Phaser.Textures.TextureManager,
-  keys: readonly string[],
-): number {
-  let count = 0;
-  for (const key of keys) {
-    if (textures.exists(key)) {
-      continue;
-    }
-    const asset = getAsset(key);
-    if (!asset) {
-      continue;
-    }
-    loader.svg(asset.key, asset.url, { width: asset.width, height: asset.height });
-    count += 1;
-  }
-  return count;
-}

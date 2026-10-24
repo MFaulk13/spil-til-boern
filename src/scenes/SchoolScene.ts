@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadMissingAssets } from '@/game/assets';
+import { loadMissingAssets } from '@/game/assetLoader';
 import { QUIZ_SUBJECT_INFO, type QuizSubject, type QuizSubjectInfo } from '@/game/catalog/quiz';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';

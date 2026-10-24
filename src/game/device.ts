@@ -1,0 +1,72 @@
+export type RendererMode = 'auto' | 'webgl' | 'canvas';
+
+export interface DeviceQuery {
+  userAgent?: string;
+  search?: string;
+}
+
+function getSearch(search?: string): string {
+  if (search !== undefined) {
+    return search;
+  }
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return window.location.search;
+}
+
+function getUserAgent(userAgent?: string): string {
+  if (userAgent !== undefined) {
+    return userAgent;
+  }
+  if (typeof navigator === 'undefined') {
+    return '';
+  }
+  return navigator.userAgent;
+}
+
+export function isLegacyFirefox(userAgent = getUserAgent()): boolean {
+  const match = /Firefox\/(\d+)/.exec(userAgent);
+  return match ? Number(match[1]) <= 120 : false;
+}
+
+export function isLowMemoryMode(options: DeviceQuery = {}): boolean {
+  const params = new URLSearchParams(getSearch(options.search));
+  const override = params.get('lowmem');
+  if (override === '1') {
+    return true;
+  }
+  if (override === '0') {
+    return false;
+  }
+  return isLegacyFirefox(getUserAgent(options.userAgent));
+}
+
+export function getRendererMode(options: DeviceQuery = {}): RendererMode {
+  const params = new URLSearchParams(getSearch(options.search));
+  const renderer = params.get('renderer');
+  if (renderer === 'canvas') {
+    return 'canvas';
+  }
+  if (renderer === 'webgl') {
+    return 'webgl';
+  }
+  return 'auto';
+}
+
+export function describeWebGL(gl: WebGLRenderingContext | null): string {
+  if (!gl) {
+    return 'ingen WebGL-kontekst';
+  }
+
+  const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  const vendor = debugInfo
+    ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL))
+    : 'ukendt producent';
+  const renderer = debugInfo
+    ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
+    : 'ukendt GPU';
+  const maxTextureSize = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE));
+
+  return `${vendor} / ${renderer} (max tekstur ${maxTextureSize})`;
+}

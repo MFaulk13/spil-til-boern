@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadMissingAssets } from '@/game/assets';
+import { loadMissingAssets } from '@/game/assetLoader';
 import type { ItemDefinition } from '@/game/catalog/items';
 import {
   currentFavoriteActivity,
