@@ -54,6 +54,8 @@ export function getRendererMode(options: DeviceQuery = {}): RendererMode {
   return 'auto';
 }
 
+const LOW_MEMORY_MAX_TEXTURES = 8;
+
 export function getMaxTextures(options: DeviceQuery = {}): number {
   const params = new URLSearchParams(getSearch(options.search));
   const raw = params.get('maxtextures');
@@ -63,7 +65,7 @@ export function getMaxTextures(options: DeviceQuery = {}): number {
       return value;
     }
   }
-  return isLowMemoryMode(options) ? 1 : -1;
+  return isLowMemoryMode(options) ? LOW_MEMORY_MAX_TEXTURES : -1;
 }
 
 export function describeWebGL(gl: WebGLRenderingContext | null): string {

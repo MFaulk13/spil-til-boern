@@ -30,8 +30,8 @@ describe('device detection', () => {
     expect(getRendererMode({ search: '' })).toBe('auto');
   });
 
-  it('uses a single texture unit in low-memory mode', () => {
-    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '' })).toBe(1);
+  it('caps texture units in low-memory mode', () => {
+    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '' })).toBe(8);
     expect(getMaxTextures({ userAgent: FIREFOX_138, search: '' })).toBe(-1);
   });
 
