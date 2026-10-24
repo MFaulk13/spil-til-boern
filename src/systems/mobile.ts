@@ -50,7 +50,7 @@ function createRotateHint(): HTMLDivElement {
   return hint;
 }
 
-async function tryEnterFullscreen(game: Phaser.Game): Promise<void> {
+async function tryEnterFullscreen(onLayoutChange: () => void): Promise<void> {
   if (!isTouchDevice() || document.fullscreenElement || isStandalone()) {
     return;
   }
@@ -75,11 +75,12 @@ async function tryEnterFullscreen(game: Phaser.Game): Promise<void> {
     // Some browsers do not allow orientation locking.
   }
 
-  refreshScale(game);
+  onLayoutChange();
 }
 
-function refreshScale(game: Phaser.Game): void {
+function syncScale(game: Phaser.Game): void {
   try {
+    game.scale.getParentBounds();
     game.scale.refresh();
   } catch {
     // The game may already be shutting down.
@@ -89,6 +90,38 @@ function refreshScale(game: Phaser.Game): void {
 export function bindMobileDisplay(game: Phaser.Game): () => void {
   const hint = createRotateHint();
   let paused = false;
+  let scaleFrame = 0;
+  let scaleTimer: number | undefined;
+
+  const cancelScaleSync = (): void => {
+    if (scaleFrame !== 0) {
+      cancelAnimationFrame(scaleFrame);
+      scaleFrame = 0;
+    }
+    if (scaleTimer !== undefined) {
+      window.clearTimeout(scaleTimer);
+      scaleTimer = undefined;
+    }
+  };
+
+  const scheduleScaleSync = (): void => {
+    cancelScaleSync();
+    scaleFrame = requestAnimationFrame(() => {
+      scaleFrame = 0;
+      syncScale(game);
+      scaleTimer = window.setTimeout(() => {
+        scaleTimer = undefined;
+        syncScale(game);
+      }, 250);
+    });
+  };
+
+  const parent = document.getElementById('game');
+  let observer: ResizeObserver | undefined;
+  if (parent && typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(scheduleScaleSync);
+    observer.observe(parent);
+  }
 
   const pauseForOrientation = (): void => {
     if (paused) {
@@ -130,15 +163,15 @@ export function bindMobileDisplay(game: Phaser.Game): () => void {
       resumeAfterOrientation();
     }
 
-    refreshScale(game);
+    scheduleScaleSync();
   };
 
   const handleFirstPointer = (): void => {
-    void tryEnterFullscreen(game);
+    void tryEnterFullscreen(scheduleScaleSync);
   };
 
   const handleFullscreenChange = (): void => {
-    refreshScale(game);
+    scheduleScaleSync();
   };
 
   const handleVisibilityChange = (): void => {
@@ -151,6 +184,7 @@ export function bindMobileDisplay(game: Phaser.Game): () => void {
   window.addEventListener('orientationchange', update);
   window.addEventListener('pointerdown', handleFirstPointer, { once: true, passive: true });
   window.visualViewport?.addEventListener('resize', update);
+  window.visualViewport?.addEventListener('scroll', scheduleScaleSync);
   document.addEventListener('fullscreenchange', handleFullscreenChange);
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
   document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -162,9 +196,12 @@ export function bindMobileDisplay(game: Phaser.Game): () => void {
     window.removeEventListener('orientationchange', update);
     window.removeEventListener('pointerdown', handleFirstPointer);
     window.visualViewport?.removeEventListener('resize', update);
+    window.visualViewport?.removeEventListener('scroll', scheduleScaleSync);
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    cancelScaleSync();
+    observer?.disconnect();
     hint.remove();
   };
 }

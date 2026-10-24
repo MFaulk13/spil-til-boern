@@ -20,6 +20,7 @@ body {
 }
 
 body {
+  position: relative;
   display: grid;
   place-items: center;
   -webkit-user-select: none;
@@ -28,9 +29,10 @@ body {
 }
 
 #game {
-  position: fixed;
-  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  position: absolute;
+  inset: 0;
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   display: grid;
   place-items: center;
 }
@@ -47,6 +49,8 @@ body {
 .rotate-hint {
   position: fixed;
   inset: 0;
+  height: 100vh;
+  height: 100dvh;
   z-index: 100;
   display: none;
   place-items: center;
