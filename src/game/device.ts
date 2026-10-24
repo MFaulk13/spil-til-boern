@@ -68,6 +68,30 @@ export function getMaxTextures(options: DeviceQuery = {}): number {
   return isLowMemoryMode(options) ? LOW_MEMORY_MAX_TEXTURES : -1;
 }
 
+export function getAntialias(options: DeviceQuery = {}): boolean {
+  const params = new URLSearchParams(getSearch(options.search));
+  const antialias = params.get('aa');
+  if (antialias === '0') {
+    return false;
+  }
+  if (antialias === '1') {
+    return true;
+  }
+  return params.get('quality') !== 'low';
+}
+
+export function getFpsLimit(options: DeviceQuery = {}): number {
+  const params = new URLSearchParams(getSearch(options.search));
+  const raw = params.get('fps');
+  if (raw !== null) {
+    const value = Number.parseInt(raw, 10);
+    if (Number.isFinite(value) && value >= 0 && value <= 120) {
+      return value;
+    }
+  }
+  return params.get('quality') === 'low' ? 30 : 0;
+}
+
 export function describeWebGL(gl: WebGLRenderingContext | null): string {
   if (!gl) {
     return 'ingen WebGL-kontekst';

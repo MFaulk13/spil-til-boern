@@ -5,11 +5,13 @@ import { audio } from '@/systems/audio';
 import { bindVisibilityPause } from '@/systems/lifecycle';
 import { bindMobileDisplay } from '@/systems/mobile';
 import { needsClock } from '@/systems/needs';
+import { bindPerformanceOverlay } from '@/systems/perf';
 
 const game = new Phaser.Game(createGameConfig());
 const unbindVisibility = bindVisibilityPause(game);
 const unbindMobileDisplay = bindMobileDisplay(game);
 const unbindNeedsClock = needsClock.start(game);
+const unbindPerformanceOverlay = bindPerformanceOverlay(game);
 
 const unlockAudio = () => audio.unlock();
 window.addEventListener('pointerdown', unlockAudio, { once: true });
@@ -20,6 +22,7 @@ if (import.meta.hot) {
     unbindVisibility();
     unbindMobileDisplay();
     unbindNeedsClock();
+    unbindPerformanceOverlay();
     game.destroy(true);
   });
 }

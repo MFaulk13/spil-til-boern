@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { getRasterSize, type AssetEntry } from '@/game/assets';
-import { getMaxTextures, getRendererMode, isLegacyFirefox, isLowMemoryMode } from '@/game/device';
+import {
+  getAntialias,
+  getFpsLimit,
+  getMaxTextures,
+  getRendererMode,
+  isLegacyFirefox,
+  isLowMemoryMode,
+} from '@/game/device';
 
 const FIREFOX_115 =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:115.0) Gecko/20100101 Firefox/115.0';
@@ -40,6 +47,23 @@ describe('device detection', () => {
     expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=16' })).toBe(16);
     expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=0' })).toBe(-1);
     expect(getMaxTextures({ userAgent: FIREFOX_138, search: '?maxtextures=abc' })).toBe(-1);
+  });
+
+  it('parses the antialias and quality overrides', () => {
+    expect(getAntialias({ search: '' })).toBe(true);
+    expect(getAntialias({ search: '?aa=0' })).toBe(false);
+    expect(getAntialias({ search: '?aa=1' })).toBe(true);
+    expect(getAntialias({ search: '?quality=low' })).toBe(false);
+    expect(getAntialias({ search: '?quality=low&aa=1' })).toBe(true);
+  });
+
+  it('parses the fps and quality overrides', () => {
+    expect(getFpsLimit({ search: '' })).toBe(0);
+    expect(getFpsLimit({ search: '?fps=30' })).toBe(30);
+    expect(getFpsLimit({ search: '?fps=0' })).toBe(0);
+    expect(getFpsLimit({ search: '?quality=low' })).toBe(30);
+    expect(getFpsLimit({ search: '?quality=low&fps=60' })).toBe(60);
+    expect(getFpsLimit({ search: '?quality=high' })).toBe(0);
   });
 });
 

@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/game/constants';
-import { getMaxTextures, getRendererMode, isLowMemoryMode } from '@/game/device';
+import {
+  getAntialias,
+  getFpsLimit,
+  getMaxTextures,
+  getRendererMode,
+  isLowMemoryMode,
+} from '@/game/device';
 import { BootScene } from '@/scenes/BootScene';
 import { CharacterScene } from '@/scenes/CharacterScene';
 import { HatchScene } from '@/scenes/HatchScene';
@@ -37,9 +43,13 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
     render: {
-      antialias: true,
+      antialias: getAntialias(),
+      antialiasGL: getAntialias(),
       roundPixels: false,
       maxTextures: getMaxTextures(),
+    },
+    fps: {
+      limit: getFpsLimit(),
     },
     loader: {
       maxParallelDownloads: isLowMemoryMode() ? 8 : 32,
