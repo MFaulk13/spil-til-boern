@@ -38,9 +38,17 @@ describe('balance', () => {
     const firstRound = heartsForRound(3, true);
     const repeatRound = heartsForRound(3, false);
 
-    expect(firstRound).toBeLessThanOrEqual(20);
+    expect(firstRound).toBeLessThanOrEqual(25);
     expect(repeatRound).toBeLessThan(firstRound);
     expect(QUIZ_ROUND_LENGTH).toBe(5);
+  });
+
+  it('lets two perfect repeat rounds buy a mid-priced item', () => {
+    const twoRepeatRounds = heartsForRound(3, false) * 2;
+    const midPricedItem = ITEMS.find((item) => item.id === 'sofa');
+
+    expect(midPricedItem).toBeDefined();
+    expect(twoRepeatRounds).toBeGreaterThanOrEqual(midPricedItem?.price ?? 0);
   });
 
   it('prices every pet adoption within reach of a few quiz rounds', () => {

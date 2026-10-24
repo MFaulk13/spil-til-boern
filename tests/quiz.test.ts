@@ -234,10 +234,10 @@ describe('school rewards', () => {
   });
 
   it('adds the first-time bonus only once', () => {
-    expect(heartsForRound(3, true)).toBe(18);
-    expect(heartsForRound(3, false)).toBe(13);
-    expect(heartsForRound(0, true)).toBe(10 + FIRST_COMPLETION_BONUS);
-    expect(heartsForRound(0, false)).toBe(10);
+    expect(heartsForRound(3, true)).toBe(23);
+    expect(heartsForRound(3, false)).toBe(18);
+    expect(heartsForRound(0, true)).toBe(15 + FIRST_COMPLETION_BONUS);
+    expect(heartsForRound(0, false)).toBe(15);
   });
 
   it('tracks rounds, best stars and first completion', () => {

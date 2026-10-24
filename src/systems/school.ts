@@ -1,7 +1,7 @@
 import type { SchoolProgress } from '@/game/types';
 
 export const SCHOOL_ROUND_LENGTH = 5;
-export const HEARTS_PER_SOLVED = 2;
+export const HEARTS_PER_SOLVED = 3;
 export const HEARTS_PER_STAR = 1;
 export const FIRST_COMPLETION_BONUS = 5;
 
