@@ -47,10 +47,28 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
   let framesSince = 0;
   let lastFlushCount = 0;
   let lastSample = performance.now();
+  let updateTime = 0;
+  let renderTime = 0;
+  let updateStart = 0;
+  let renderStart = 0;
 
+  const onPreStep = (): void => {
+    updateStart = performance.now();
+  };
+  const onPostStep = (): void => {
+    updateTime += performance.now() - updateStart;
+  };
+  const onPreRender = (): void => {
+    renderStart = performance.now();
+  };
   const onPostRender = (): void => {
+    renderTime += performance.now() - renderStart;
     framesSince += 1;
   };
+
+  game.events.on(Phaser.Core.Events.PRE_STEP, onPreStep);
+  game.events.on(Phaser.Core.Events.POST_STEP, onPostStep);
+  game.events.on(Phaser.Core.Events.PRE_RENDER, onPreRender);
   game.events.on(Phaser.Core.Events.POST_RENDER, onPostRender);
 
   const interval = window.setInterval(() => {
@@ -63,9 +81,13 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
     const fps = (framesSince * 1000) / elapsed;
     const flushes = flushCount - lastFlushCount;
     const batchesPerFrame = framesSince > 0 ? (flushes / framesSince).toFixed(1) : 'n/a';
+    const updateAvg = framesSince > 0 ? updateTime / framesSince : 0;
+    const renderAvg = framesSince > 0 ? renderTime / framesSince : 0;
     framesSince = 0;
     lastFlushCount = flushCount;
     lastSample = now;
+    updateTime = 0;
+    renderTime = 0;
 
     const scenes = game.scene.getScenes(true);
     const objectCount = scenes.reduce((total, scene) => total + scene.children.length, 0);
@@ -79,6 +101,7 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
 
     overlay.textContent = [
       `FPS ${fps.toFixed(0)}  frame ${frameMs}ms`,
+      `update ${updateAvg.toFixed(1)}ms  render ${renderAvg.toFixed(1)}ms`,
       `batches/frame ${batchesPerFrame}  objects ${objectCount}  tweens ${tweenCount}`,
       `textures ${game.textures.getTextureKeys().length}  maxTextures ${maxTextures}`,
       `aa ${getAntialias() ? 'on' : 'off'}  fpsLimit ${getFpsLimit() || 'off'}  lowmem ${isLowMemoryMode()}`,
@@ -88,6 +111,9 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
 
   return () => {
     window.clearInterval(interval);
+    game.events.off(Phaser.Core.Events.PRE_STEP, onPreStep);
+    game.events.off(Phaser.Core.Events.POST_STEP, onPostStep);
+    game.events.off(Phaser.Core.Events.PRE_RENDER, onPreRender);
     game.events.off(Phaser.Core.Events.POST_RENDER, onPostRender);
     if (originalFlush) {
       renderer.flush = originalFlush;

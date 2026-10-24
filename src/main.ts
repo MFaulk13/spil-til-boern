@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import '@/style.css';
 import { createGameConfig } from '@/game/config';
+import { isLowMemoryMode } from '@/game/device';
 import { audio } from '@/systems/audio';
 import { bindVisibilityPause } from '@/systems/lifecycle';
 import { bindMobileDisplay } from '@/systems/mobile';
 import { needsClock } from '@/systems/needs';
 import { bindPerformanceOverlay } from '@/systems/perf';
+
+document.documentElement.classList.toggle('low-memory', isLowMemoryMode());
 
 const game = new Phaser.Game(createGameConfig());
 const unbindVisibility = bindVisibilityPause(game);

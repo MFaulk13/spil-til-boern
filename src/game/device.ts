@@ -54,7 +54,7 @@ export function getRendererMode(options: DeviceQuery = {}): RendererMode {
   return 'auto';
 }
 
-const LOW_MEMORY_MAX_TEXTURES = 8;
+const LOW_MEMORY_MAX_TEXTURES = 5;
 
 export function getMaxTextures(options: DeviceQuery = {}): number {
   const params = new URLSearchParams(getSearch(options.search));

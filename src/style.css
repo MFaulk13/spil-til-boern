@@ -42,6 +42,10 @@ body {
   box-shadow: 0 24px 80px rgb(88 62 40 / 25%);
 }
 
+html.low-memory #game canvas {
+  box-shadow: none;
+}
+
 .rotate-hint {
   position: fixed;
   inset: 0;
