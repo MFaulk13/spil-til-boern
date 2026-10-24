@@ -21,8 +21,6 @@ body {
 
 body {
   position: relative;
-  display: grid;
-  place-items: center;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -33,8 +31,6 @@ body {
   inset: 0;
   inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
     env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-  display: grid;
-  place-items: center;
 }
 
 #game canvas {
