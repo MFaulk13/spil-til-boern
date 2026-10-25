@@ -34,6 +34,7 @@ export const text = {
   profiles: {
     title: 'Hvem spiller?',
     subtitle: 'Vælg din figur',
+    choose: 'Vælg profil',
     name: (number: number) => `Profil ${number}`,
     create: 'Ny profil',
     first: 'Lav din profil',

@@ -31,7 +31,7 @@ export class PreloadScene extends Phaser.Scene {
   private async finishLoading(): Promise<void> {
     await this.ensureTexturesReady();
     this.logDiagnostics();
-    this.scene.start(SCENE_KEYS.PROFILE);
+    this.scene.start(SCENE_KEYS.MENU);
   }
 
   private async ensureTexturesReady(): Promise<void> {

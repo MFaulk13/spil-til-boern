@@ -3,7 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
-import { save } from '@/systems/save';
+import { MAX_PROFILES, save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
 import { ConfirmDialog } from '@/ui/Modal';
@@ -28,11 +28,6 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.dialog = undefined;
-    if (!save.activeProfileId) {
-      this.scene.start(SCENE_KEYS.PROFILE);
-      return;
-    }
-
     drawBackdrop(this);
     this.createDecorations();
 
@@ -47,13 +42,15 @@ export class MenuScene extends Phaser.Scene {
     this.createPreviews();
     this.createTitle();
 
+    const active = save.activeProfileId !== null;
+    const profiles = save.profiles;
+    const hasProfiles = profiles.length > 0;
+    const canCreate = profiles.length < MAX_PROFILES;
     const pet = save.pet;
     const player = save.playerLook;
-    const hasSave = player !== null || pet !== null;
+    const hasSave = active && (player !== null || pet !== null);
 
-    const mainLabel = pet ? text.continueWith(pet.name) : player ? text.continue : text.start;
-
-    if (save.activeProfileName) {
+    if (active && save.activeProfileName) {
       this.add
         .text(GAME_WIDTH / 2, 296, text.profiles.current(save.activeProfileName), {
           fontFamily: FONT_FAMILY,
@@ -67,36 +64,50 @@ export class MenuScene extends Phaser.Scene {
     new Button(this, {
       x: GAME_WIDTH / 2,
       y: 358,
-      label: mainLabel,
+      label: this.primaryLabel(),
       width: 430,
       height: 104,
       fontSize: 40,
-      onClick: () => this.startJourney(),
+      onClick: () => this.runPrimaryAction(),
     });
 
-    new Button(this, {
-      x: hasSave ? GAME_WIDTH / 2 - 175 : GAME_WIDTH / 2,
-      y: 466,
-      label: text.profiles.switch,
-      width: hasSave ? 320 : 360,
-      height: 84,
-      fontSize: 28,
-      color: COLORS.panelLight,
-      textColor: COLORS.text,
-      onClick: () => this.openProfiles(),
-    });
-
-    if (hasSave) {
+    if (active) {
       new Button(this, {
-        x: GAME_WIDTH / 2 + 175,
+        x: hasSave ? GAME_WIDTH / 2 - 175 : GAME_WIDTH / 2,
         y: 466,
-        label: text.profiles.startOver,
-        width: 320,
+        label: text.profiles.switch,
+        width: hasSave ? 320 : 360,
         height: 84,
         fontSize: 28,
         color: COLORS.panelLight,
         textColor: COLORS.text,
-        onClick: () => this.confirmStartOver(),
+        onClick: () => this.openProfiles(),
+      });
+
+      if (hasSave) {
+        new Button(this, {
+          x: GAME_WIDTH / 2 + 175,
+          y: 466,
+          label: text.profiles.startOver,
+          width: 320,
+          height: 84,
+          fontSize: 28,
+          color: COLORS.panelLight,
+          textColor: COLORS.text,
+          onClick: () => this.confirmStartOver(),
+        });
+      }
+    } else if (hasProfiles && canCreate) {
+      new Button(this, {
+        x: GAME_WIDTH / 2,
+        y: 466,
+        label: text.profiles.create,
+        width: 360,
+        height: 84,
+        fontSize: 28,
+        color: COLORS.panelLight,
+        textColor: COLORS.text,
+        onClick: () => this.createProfile(),
       });
     }
 
@@ -132,8 +143,8 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.input.keyboard?.on('keydown-ENTER', () => this.startJourney());
-    this.input.keyboard?.on('keydown-SPACE', () => this.startJourney());
+    this.input.keyboard?.on('keydown-ENTER', () => this.runPrimaryAction());
+    this.input.keyboard?.on('keydown-SPACE', () => this.runPrimaryAction());
     this.input.keyboard?.on('keydown-S', () => this.toggleSound());
     this.input.keyboard?.on('keydown-M', () => this.toggleMotion());
     this.input.keyboard?.on('keydown-P', () => this.openProfiles());
@@ -160,16 +171,17 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createPreviews(): void {
-    const player = save.playerLook;
-    const pet = save.pet;
+    const active = save.activeProfileId !== null;
+    const player = active ? save.playerLook : null;
+    const pet = active ? save.pet : null;
 
     if (player) {
-      const character = new CharacterView(this, 300, 628, 260, player);
+      const character = new CharacterView(this, 150, 610, 240, player);
       character.startIdle();
       if (!isReducedMotion()) {
         this.tweens.add({
           targets: character,
-          y: 622,
+          y: 604,
           duration: 1700,
           yoyo: true,
           repeat: -1,
@@ -177,22 +189,22 @@ export class MenuScene extends Phaser.Scene {
         });
       }
     } else {
-      this.add.image(300, 520, 'icon-paw').setDisplaySize(164, 164).setAlpha(0.55).setAngle(-8);
+      this.add.image(150, 560, 'icon-paw').setDisplaySize(170, 170).setAlpha(0.45).setAngle(-8);
     }
 
     if (pet) {
-      const petView = new PetView(this, 980, 632, 224, pet.id, pet.accessory);
+      const petView = new PetView(this, 1130, 610, 210, pet.id, pet.accessory);
       petView.startIdle();
       this.add
-        .text(980, 676, pet.name, {
+        .text(1130, 674, pet.name, {
           fontFamily: FONT_FAMILY,
-          fontSize: '30px',
+          fontSize: '28px',
           color: COLORS.text,
           fontStyle: 'bold',
         })
         .setOrigin(0.5);
     } else {
-      this.add.image(980, 520, 'icon-star').setDisplaySize(150, 150).setAlpha(0.5).setAngle(12);
+      this.add.image(1130, 560, 'icon-star').setDisplaySize(150, 150).setAlpha(0.45).setAngle(12);
     }
   }
 
@@ -222,8 +234,34 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  private startJourney(): void {
+  private primaryLabel(): string {
+    if (save.activeProfileId) {
+      const pet = save.pet;
+      if (pet) {
+        return text.continueWith(pet.name);
+      }
+      return save.playerLook ? text.continue : text.start;
+    }
+    return save.profiles.length > 0 ? text.profiles.choose : text.newGame;
+  }
+
+  private runPrimaryAction(): void {
     if (this.dialog) {
+      return;
+    }
+    if (save.activeProfileId) {
+      this.startJourney();
+      return;
+    }
+    if (save.profiles.length > 0) {
+      this.openProfiles();
+      return;
+    }
+    this.createProfile();
+  }
+
+  private startJourney(): void {
+    if (this.dialog || !save.activeProfileId) {
       return;
     }
     audio.unlock();
@@ -239,11 +277,25 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private openProfiles(): void {
-    if (this.dialog) {
+    if (this.dialog || save.profiles.length === 0) {
       return;
     }
     audio.unlock();
     this.scene.start(SCENE_KEYS.PROFILE, { origin: 'menu' });
+  }
+
+  private createProfile(): void {
+    if (this.dialog) {
+      return;
+    }
+    const meta = save.createProfile();
+    if (!meta) {
+      audio.play('error');
+      return;
+    }
+    audio.unlock();
+    audio.play('pop');
+    this.scene.start(SCENE_KEYS.CHARACTER);
   }
 
   private confirmStartOver(): void {
