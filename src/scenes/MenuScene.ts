@@ -4,10 +4,13 @@ import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { MAX_PROFILES, save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
 import { ConfirmDialog } from '@/ui/Modal';
 import { PetView } from '@/ui/PetView';
+import { applySeasonTheme, addSeasonLabel } from '@/ui/SeasonDecor';
+import { SeasonInfoModal } from '@/ui/SeasonInfoModal';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -21,6 +24,7 @@ const DECORATIONS = [
 export class MenuScene extends Phaser.Scene {
   private soundButton?: Button;
   private dialog?: ConfirmDialog;
+  private seasonInfo?: SeasonInfoModal;
 
   constructor() {
     super(SCENE_KEYS.MENU);
@@ -28,7 +32,11 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.dialog = undefined;
-    drawBackdrop(this);
+    this.seasonInfo = undefined;
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
+    addSeasonLabel(this, theme, 24, 20, () => this.openSeasonInfo(theme));
     this.createDecorations();
 
     for (const decoration of DECORATIONS) {
@@ -148,6 +156,7 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-S', () => this.toggleSound());
     this.input.keyboard?.on('keydown-M', () => this.toggleMotion());
     this.input.keyboard?.on('keydown-P', () => this.openProfiles());
+    this.input.keyboard?.on('keydown-I', () => this.openSeasonInfo(theme));
   }
 
   private createTitle(): void {
@@ -245,8 +254,12 @@ export class MenuScene extends Phaser.Scene {
     return save.profiles.length > 0 ? text.profiles.choose : text.newGame;
   }
 
+  private isModalOpen(): boolean {
+    return this.dialog !== undefined || this.seasonInfo !== undefined;
+  }
+
   private runPrimaryAction(): void {
-    if (this.dialog) {
+    if (this.isModalOpen()) {
       return;
     }
     if (save.activeProfileId) {
@@ -261,7 +274,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startJourney(): void {
-    if (this.dialog || !save.activeProfileId) {
+    if (this.isModalOpen() || !save.activeProfileId) {
       return;
     }
     audio.unlock();
@@ -277,7 +290,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private openProfiles(): void {
-    if (this.dialog || save.profiles.length === 0) {
+    if (this.isModalOpen() || save.profiles.length === 0) {
       return;
     }
     audio.unlock();
@@ -285,7 +298,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createProfile(): void {
-    if (this.dialog) {
+    if (this.isModalOpen()) {
       return;
     }
     const meta = save.createProfile();
@@ -299,7 +312,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private confirmStartOver(): void {
-    if (this.dialog) {
+    if (this.isModalOpen()) {
       return;
     }
     this.dialog = new ConfirmDialog(this, {
@@ -317,8 +330,20 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
+  private openSeasonInfo(theme: ReturnType<typeof currentSeasonTheme>): void {
+    if (this.isModalOpen()) {
+      return;
+    }
+    this.seasonInfo = new SeasonInfoModal(this, {
+      theme,
+      onClose: () => {
+        this.seasonInfo = undefined;
+      },
+    });
+  }
+
   private toggleSound(): void {
-    if (this.dialog) {
+    if (this.isModalOpen()) {
       return;
     }
     audio.setEnabled(!audio.isEnabled);
@@ -327,7 +352,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private toggleMotion(): void {
-    if (this.dialog) {
+    if (this.isModalOpen()) {
       return;
     }
     save.setReduceMotion(!save.reduceMotion);

@@ -3,11 +3,13 @@ import { loadMissingAssets } from '@/game/assetLoader';
 import { DEFAULT_LOOK } from '@/game/catalog/appearance';
 import {
   categoryPurchaseCount,
+  isItemInSeason,
   isItemUnlocked,
   itemsByCategory,
   type ItemDefinition,
 } from '@/game/catalog/items';
 import { PETS, type PetDefinition } from '@/game/catalog/pets';
+import type { SeasonThemeDefinition } from '@/game/catalog/seasons';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import { ITEM_CATEGORIES, type ItemCategory } from '@/game/types';
@@ -15,11 +17,13 @@ import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { canAfford, itemCount, purchase } from '@/systems/economy';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { applyWardrobeItem } from '@/systems/wardrobe';
 import { Button } from '@/ui/Button';
 import { ItemCard } from '@/ui/ItemCard';
 import { ConfirmDialog } from '@/ui/Modal';
 import { PetCard } from '@/ui/PetCard';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 type ShopTab = ItemCategory | 'pet';
@@ -46,6 +50,7 @@ export class ShopScene extends Phaser.Scene {
   private grid?: Phaser.GameObjects.Container;
   private dialog?: ConfirmDialog;
   private page = 0;
+  private seasonTheme: SeasonThemeDefinition = currentSeasonTheme();
   private readonly categoryButtons = new Map<ShopTab, Button>();
 
   constructor() {
@@ -67,8 +72,10 @@ export class ShopScene extends Phaser.Scene {
     this.category = this.initialCategory;
     this.page = 0;
     this.categoryButtons.clear();
+    this.seasonTheme = currentSeasonTheme();
 
-    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'shop-room');
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'shop-room').setDepth(-10);
+    applySeasonTheme(this, this.seasonTheme, 'indoor');
 
     new Button(this, {
       x: 96,
@@ -92,7 +99,7 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(GAME_WIDTH / 2, 92, text.shop.subtitle, {
+      .text(GAME_WIDTH / 2, 92, text.shop.subtitleSeason(this.seasonTheme.label), {
         fontFamily: FONT_FAMILY,
         fontSize: '23px',
         color: COLORS.textMuted,
@@ -189,7 +196,13 @@ export class ShopScene extends Phaser.Scene {
 
     const category = this.category;
     const allItems = itemsByCategory(category);
-    const items = category === 'wardrobe' ? allItems.filter((item) => item.price > 0) : allItems;
+    const availableItems =
+      category === 'wardrobe' ? allItems.filter((item) => item.price > 0) : allItems;
+    const items = [...availableItems].sort(
+      (left, right) =>
+        Number(isItemInSeason(right, this.seasonTheme.id)) -
+        Number(isItemInSeason(left, this.seasonTheme.id)),
+    );
     const purchased = categoryPurchaseCount(save.purchases, category);
     const pageSize = COLUMN_X.length * ROW_Y.length;
 
@@ -225,6 +238,7 @@ export class ShopScene extends Phaser.Scene {
         affordable: canAfford(save, item.price),
         locked: !unlocked,
         showPrice: item.category !== 'wardrobe' || owned === 0,
+        seasonal: isItemInSeason(item, this.seasonTheme.id),
         lockLabel: unlocked
           ? undefined
           : text.shop.locked(item.requiredPurchases - purchased, text.shop.categories[category]),

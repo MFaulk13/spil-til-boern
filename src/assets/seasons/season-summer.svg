@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <g stroke="#4a3a32" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="192" cy="62" r="40" fill="#ffd166" />
+    <g stroke="#ffb703" stroke-width="7">
+      <path d="M192 8 V28" />
+      <path d="M192 96 V116" />
+      <path d="M138 62 H158" />
+      <path d="M226 62 H246" />
+      <path d="M154 24 L168 38" />
+      <path d="M216 86 L230 100" />
+      <path d="M230 24 L216 38" />
+      <path d="M168 86 L154 100" />
+    </g>
+    <circle cx="74" cy="170" r="42" fill="#ff8b7d" />
+    <path d="M32 170 H116" fill="none" stroke="#fff8ee" stroke-width="8" />
+    <path d="M74 128 Q84 150 74 170 Q64 150 74 128 Z" fill="#ffc94d" stroke="none" />
+    <path d="M32 170 Q52 158 74 170 Q54 182 32 170 Z" fill="#62c9b8" stroke="none" />
+    <path d="M116 170 Q96 158 74 170 Q94 182 116 170 Z" fill="#62c9b8" stroke="none" />
+    <path d="M132 208 L158 112 Q164 96 180 100 L196 164 Z" fill="#f7dca8" />
+    <path d="M148 138 Q164 128 180 134" fill="none" stroke="#ff8b7d" stroke-width="8" />
+    <path d="M158 112 Q176 80 196 108 Q188 128 180 100" fill="#ffd1e0" />
+    <circle cx="132" cy="208" r="10" fill="#e7b782" />
+    <path d="M214 208 Q226 190 238 208 Q226 224 214 208 Z" fill="#f3c6a0" />
+    <path d="M214 208 L226 198 L238 208" fill="none" stroke="#e39ac0" stroke-width="5" />
+  </g>
+</svg>

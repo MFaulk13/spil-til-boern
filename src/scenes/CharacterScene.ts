@@ -20,6 +20,7 @@ import { text } from '@/game/text';
 import type { CharacterLook, WardrobeSlot } from '@/game/types';
 import { normalizeLook, randomizeLook, type LookPool } from '@/systems/appearance';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import {
   getWardrobeItemFor,
   isFreeWardrobeOption,
@@ -27,6 +28,7 @@ import {
 } from '@/systems/wardrobe';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 import { setTintableTexture } from '@/ui/tint';
@@ -72,7 +74,9 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   create(): void {
-    drawBackdrop(this);
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
     this.look = normalizeLook(save.playerLook ?? undefined);
     this.category = 'gender';
     this.optionPage = 0;

@@ -6,7 +6,9 @@ import { text } from '@/game/text';
 import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
 import { setTintableTexture } from '@/ui/tint';
 
@@ -58,7 +60,8 @@ export class SchoolScene extends Phaser.Scene {
 
   create(): void {
     this.starting = false;
-    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'school-room');
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'school-room').setDepth(-10);
+    applySeasonTheme(this, currentSeasonTheme(), 'indoor');
     this.createHeader();
     this.createHeartPill();
 

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <g stroke="#4a3a32" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M128 74 Q176 74 190 114 Q204 156 176 190 Q128 214 80 190 Q52 156 66 114 Q80 74 128 74 Z" fill="#ff8c42" />
+    <path d="M128 74 Q128 56 142 50 Q140 68 128 74 Z" fill="#3f7d4a" />
+    <path d="M92 124 L114 138 L92 152 Z" fill="#4a3a32" stroke="none" />
+    <path d="M164 124 L142 138 L164 152 Z" fill="#4a3a32" stroke="none" />
+    <path d="M96 168 L110 156 L124 168 L138 156 L152 168 Q128 186 96 168 Z" fill="#4a3a32" stroke="none" />
+    <path d="M96 168 L110 156 L124 168" fill="none" stroke="#ffd166" stroke-width="5" />
+    <path d="M132 168 L146 156 L160 168" fill="none" stroke="#ffd166" stroke-width="5" />
+    <path d="M128 168 V184" fill="none" stroke="#4a3a32" stroke-width="5" />
+    <path d="M112 184 Q128 192 144 184" fill="none" stroke="#4a3a32" stroke-width="5" />
+    <path d="M42 42 Q54 26 66 42 Q78 26 90 42 Q78 52 66 44 Q54 52 42 42 Z" fill="#5b3f78" />
+    <path d="M166 26 Q176 12 186 26 Q196 12 206 26 Q196 34 186 28 Q176 34 166 26 Z" fill="#5b3f78" />
+    <path d="M200 104 Q212 88 224 104 Q212 114 200 104 Z" fill="#5b3f78" />
+  </g>
+  <g stroke="#4a3a32" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M48 214 L92 214 L82 240 L58 240 Z" fill="#ffc94d" />
+    <path d="M58 202 Q70 182 82 202 L76 214 L64 214 Z" fill="#f7a8c4" />
+    <path d="M56 226 H84" fill="none" stroke="#e39ac0" stroke-width="5" />
+  </g>
+</svg>

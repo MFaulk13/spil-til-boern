@@ -4,9 +4,11 @@ import { text } from '@/game/text';
 import type { ProfileOverview } from '@/game/types';
 import { audio } from '@/systems/audio';
 import { MAX_PROFILES, save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/Modal';
 import { ProfileCard } from '@/ui/ProfileCard';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -29,7 +31,9 @@ export class ProfileScene extends Phaser.Scene {
 
   create(): void {
     this.dialog = undefined;
-    drawBackdrop(this);
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
     this.createHeader();
 
     const profiles = save.getProfileOverviews();

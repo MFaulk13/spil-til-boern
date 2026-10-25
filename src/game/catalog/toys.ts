@@ -33,6 +33,8 @@ export const TOY_PLAYS: Readonly<Record<string, ToyPlayDefinition>> = {
   xylophone: { style: 'music', joy: 24 },
   crayons: { style: 'create', joy: 22 },
   'scratching-post': { style: 'scratch', joy: 22 },
+  'easter-eggs': { style: 'fetch', joy: 20 },
+  'beach-ball': { style: 'fetch', joy: 24 },
 };
 
 export function getToyPlay(itemId: string): ToyPlayDefinition {

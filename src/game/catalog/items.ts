@@ -7,6 +7,7 @@ import {
   type ColorOption,
   type StyleOption,
 } from '@/game/catalog/appearance';
+import type { SeasonThemeId } from '@/game/catalog/seasons';
 import { wardrobeItemId } from '@/game/catalog/wardrobe';
 import { text } from '@/game/text';
 import type { ItemCategory, WardrobeSlot } from '@/game/types';
@@ -26,6 +27,11 @@ export interface ItemDefinition {
   color?: number;
   wardrobeSlot?: WardrobeSlot;
   appearanceId?: string;
+  season?: SeasonThemeId;
+  petAccessory?: {
+    y: number;
+    scale: number;
+  };
 }
 
 const CELL = 64;
@@ -39,6 +45,7 @@ function placeable(
   gridWidth: number,
   gridHeight: number,
   requiredPurchases = 0,
+  season?: SeasonThemeId,
 ): ItemDefinition {
   return {
     id,
@@ -52,6 +59,7 @@ function placeable(
     gridHeight,
     placeable: true,
     requiredPurchases,
+    season,
   };
 }
 
@@ -62,6 +70,8 @@ function collectible(
   price: number,
   assetKey: string,
   requiredPurchases = 0,
+  season?: SeasonThemeId,
+  petAccessory?: { y: number; scale: number },
 ): ItemDefinition {
   return {
     id,
@@ -75,6 +85,8 @@ function collectible(
     gridHeight: 0,
     placeable: false,
     requiredPurchases,
+    season,
+    petAccessory,
   };
 }
 
@@ -193,6 +205,39 @@ const BASE_ITEMS: readonly ItemDefinition[] = [
     2,
     12,
   ),
+  placeable(
+    'pumpkin',
+    'furniture',
+    text.items.pumpkin,
+    18,
+    'furniture-pumpkin',
+    1,
+    1,
+    0,
+    'halloween',
+  ),
+  placeable(
+    'christmas-tree',
+    'furniture',
+    text.items.christmasTree,
+    60,
+    'furniture-christmas-tree',
+    2,
+    3,
+    0,
+    'christmas',
+  ),
+  placeable(
+    'bonfire',
+    'furniture',
+    text.items.bonfire,
+    30,
+    'furniture-bonfire',
+    2,
+    2,
+    0,
+    'sankthans',
+  ),
   placeable('ball', 'toy', text.items.ball, 8, 'toy-ball', 1, 1),
   placeable('teddy', 'toy', text.items.teddy, 14, 'toy-teddy', 1, 2),
   placeable('scratching-post', 'toy', text.items.scratchingPost, 26, 'toy-scratching-post', 2, 3),
@@ -210,11 +255,58 @@ const BASE_ITEMS: readonly ItemDefinition[] = [
   placeable('xylophone', 'toy', text.items.xylophone, 20, 'toy-xylophone', 2, 1, 4),
   placeable('car', 'toy', text.items.car, 10, 'toy-car', 1, 1),
   placeable('tea-set', 'toy', text.items.teaSet, 18, 'toy-tea-set', 2, 1, 4),
+  placeable('easter-eggs', 'toy', text.items.easterEggs, 12, 'toy-easter-eggs', 1, 1, 0, 'easter'),
+  placeable('beach-ball', 'toy', text.items.beachBall, 10, 'toy-beach-ball', 1, 1, 0, 'summer'),
   collectible('bow', 'accessory', text.items.bow, 10, 'accessory-bow-item'),
   collectible('crown', 'accessory', text.items.crown, 25, 'accessory-crown'),
   collectible('bandana', 'accessory', text.items.bandana, 15, 'accessory-bandana'),
   collectible('hat', 'accessory', text.items.hat, 18, 'accessory-hat', 2),
   collectible('scarf', 'accessory', text.items.scarf, 22, 'accessory-scarf', 4),
+  collectible(
+    'santa-hat',
+    'accessory',
+    text.items.santaHat,
+    20,
+    'accessory-santa-hat',
+    0,
+    'christmas',
+    {
+      y: -0.64,
+      scale: 0.4,
+    },
+  ),
+  collectible(
+    'bunny-ears',
+    'accessory',
+    text.items.bunnyEars,
+    18,
+    'accessory-bunny-ears',
+    0,
+    'easter',
+    {
+      y: -0.58,
+      scale: 0.42,
+    },
+  ),
+  collectible(
+    'flower-wreath',
+    'accessory',
+    text.items.flowerWreath,
+    18,
+    'accessory-flower-wreath',
+    0,
+    'spring',
+    { y: -0.54, scale: 0.42 },
+  ),
+  collectible(
+    'autumn-scarf',
+    'accessory',
+    text.items.autumnScarf,
+    20,
+    'accessory-autumn-scarf',
+    0,
+    'autumn',
+  ),
   collectible('cookie', 'treat', text.items.cookie, 5, 'treat-cookie'),
   collectible('carrot', 'treat', text.items.carrot, 6, 'treat-carrot'),
   collectible('apple', 'treat', text.items.apple, 6, 'treat-apple'),
@@ -392,6 +484,10 @@ export function treatCount(store: {
     (total, item) => total + (store.inventory[item.id] ?? 0),
     0,
   );
+}
+
+export function isItemInSeason(item: ItemDefinition, themeId: SeasonThemeId): boolean {
+  return item.season === themeId;
 }
 
 export const PLACEABLE_ITEMS = ITEMS.filter((item) => item.placeable);

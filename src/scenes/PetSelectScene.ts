@@ -4,8 +4,10 @@ import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { text } from '@/game/text';
 import type { PetId } from '@/game/types';
 import { audio } from '@/systems/audio';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
 import { EggView } from '@/ui/EggView';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -47,7 +49,9 @@ export class PetSelectScene extends Phaser.Scene {
     this.previousButton = undefined;
     this.nextButton = undefined;
     this.pageText = undefined;
-    drawBackdrop(this);
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
 
     this.add
       .text(64, 58, text.pets.title, {

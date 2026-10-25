@@ -6,6 +6,8 @@ import { text } from '@/game/text';
 import { isReducedMotion } from '@/systems/motion';
 import { earnedBadgeCount } from '@/systems/park';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 interface Location {
@@ -70,7 +72,8 @@ export class TownScene extends Phaser.Scene {
 
   create(): void {
     this.traveling = false;
-    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'town-map');
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'town-map').setDepth(-10);
+    applySeasonTheme(this, currentSeasonTheme(), 'outdoor');
 
     const panel = this.add.graphics();
     panel.fillStyle(COLORS.panel, 0.94);

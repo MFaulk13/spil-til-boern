@@ -17,6 +17,7 @@ export interface ItemCardOptions {
   selected?: boolean;
   compact?: boolean;
   showPrice?: boolean;
+  seasonal?: boolean;
   onClick?: (item: ItemDefinition) => void;
 }
 
@@ -31,6 +32,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
   private selected: boolean;
   private readonly locked: boolean;
   private readonly categoryColor: number;
+  private readonly seasonal: boolean;
 
   constructor(scene: Phaser.Scene, options: ItemCardOptions) {
     super(scene, options.x, options.y);
@@ -40,6 +42,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.affordable = options.affordable ?? true;
     this.selected = options.selected ?? false;
     this.locked = options.locked ?? false;
+    this.seasonal = options.seasonal ?? false;
     this.categoryColor = CATEGORY_COLORS[options.item.category];
 
     this.background = scene.add.graphics();
@@ -124,6 +127,14 @@ export class ItemCard extends Phaser.GameObjects.Container {
     this.ownedBadge.setVisible((options.owned ?? 0) > 0);
     this.ownedText.setText(String(options.owned ?? 0));
 
+    const seasonalBadge = scene.add.container(-this.cardWidth / 2 + 30, -this.cardHeight / 2 + 34);
+    const seasonalCircle = scene.add
+      .circle(0, 0, 17, COLORS.accent, 0.96)
+      .setStrokeStyle(3, 0xffffff, 0.8);
+    const seasonalStar = scene.add.image(0, 0, 'icon-star').setDisplaySize(22, 22);
+    seasonalBadge.add([seasonalCircle, seasonalStar]);
+    seasonalBadge.setVisible(this.seasonal);
+
     this.add([
       this.background,
       iconPlate,
@@ -133,6 +144,7 @@ export class ItemCard extends Phaser.GameObjects.Container {
       this.priceText,
       lockText,
       this.ownedBadge,
+      seasonalBadge,
     ]);
     this.drawBackground();
 

@@ -17,6 +17,7 @@ import {
   firstTreatId,
   ITEMS,
   getItem,
+  isItemInSeason,
   isItemUnlocked,
   itemsByCategory,
   treatCount,
@@ -26,6 +27,7 @@ import { QUICK_START_EYES, QUICK_START_MOUTHS, wardrobeItemId } from '@/game/cat
 import { PETS, createPetState, getPet, pickNewPetName } from '@/game/catalog/pets';
 import { QUIZ_SUBJECT_INFO } from '@/game/catalog/quiz';
 import { ROOMS } from '@/game/catalog/rooms';
+import { getSeasonTheme, SEASON_THEMES, SEASON_THEME_IDS } from '@/game/catalog/seasons';
 import { isFreeWardrobeOption } from '@/systems/wardrobe';
 import {
   createFullNeeds,
@@ -108,6 +110,57 @@ describe('asset manifest', () => {
     for (const key of ['town-map', 'shop-room', 'school-room', 'park']) {
       expect(manifestKeys.has(key), `missing scene asset: ${key}`).toBe(true);
     }
+
+    for (const theme of SEASON_THEMES) {
+      expect(manifestKeys.has(theme.decorKey), `missing season asset: ${theme.decorKey}`).toBe(
+        true,
+      );
+    }
+  });
+});
+
+describe('season catalog', () => {
+  it('has all ten themes with unique ids', () => {
+    expect(SEASON_THEMES).toHaveLength(10);
+    expect(SEASON_THEMES.map((theme) => theme.id)).toEqual([...SEASON_THEME_IDS]);
+    expectUnique(SEASON_THEMES.map((theme) => theme.id));
+    expect(new Set(SEASON_THEME_IDS).size).toBe(SEASON_THEME_IDS.length);
+  });
+
+  it('has labels, greetings, info and valid palette colors', () => {
+    for (const theme of SEASON_THEMES) {
+      expect(theme.label.length).toBeGreaterThan(0);
+      expect(theme.greeting.length).toBeGreaterThan(0);
+      expect(theme.info.length).toBeGreaterThan(0);
+      expect(theme.decorKey.length).toBeGreaterThan(0);
+      expect(theme.particleColors.length).toBeGreaterThan(0);
+      for (const color of [
+        theme.palette.top,
+        theme.palette.bottom,
+        theme.palette.accent,
+        theme.palette.wash,
+        theme.palette.ground,
+        ...theme.particleColors,
+      ]) {
+        expect(color).toBeGreaterThanOrEqual(0);
+        expect(color).toBeLessThanOrEqual(0xffffff);
+      }
+      expect(theme.palette.washAlpha).toBeGreaterThan(0);
+      expect(theme.palette.washAlpha).toBeLessThanOrEqual(0.3);
+      expect(theme.palette.groundAlpha).toBeGreaterThan(0);
+      expect(theme.palette.groundAlpha).toBeLessThanOrEqual(0.3);
+    }
+  });
+
+  it('looks up every theme by id', () => {
+    for (const id of SEASON_THEME_IDS) {
+      expect(getSeasonTheme(id).id).toBe(id);
+    }
+  });
+
+  it('marks exactly six themes as holidays', () => {
+    expect(SEASON_THEMES.filter((theme) => theme.kind === 'holiday')).toHaveLength(6);
+    expect(SEASON_THEMES.filter((theme) => theme.kind === 'season')).toHaveLength(4);
   });
 });
 
@@ -165,6 +218,31 @@ describe('item catalog', () => {
         ITEMS.some((item) => item.category === category),
         `empty: ${category}`,
       ).toBe(true);
+    }
+  });
+
+  it('marks seasonal items with a valid theme and keeps them always available', () => {
+    const seasonalItems = ITEMS.filter((item) => item.season !== undefined);
+    expect(seasonalItems.length).toBeGreaterThanOrEqual(9);
+
+    for (const item of seasonalItems) {
+      expect(SEASON_THEME_IDS).toContain(item.season);
+      expect(item.requiredPurchases).toBe(0);
+      if (item.season) {
+        expect(isItemInSeason(item, item.season)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps custom pet accessory placement inside the pet view', () => {
+    for (const item of itemsByCategory('accessory')) {
+      if (!item.petAccessory) {
+        continue;
+      }
+      expect(item.petAccessory.y).toBeLessThan(0);
+      expect(item.petAccessory.y).toBeGreaterThanOrEqual(-1);
+      expect(item.petAccessory.scale).toBeGreaterThan(0);
+      expect(item.petAccessory.scale).toBeLessThanOrEqual(1);
     }
   });
 

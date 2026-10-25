@@ -30,6 +30,7 @@ import {
   type ParkActivityResult,
 } from '@/systems/park';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { speak } from '@/systems/speech';
 import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
@@ -40,6 +41,7 @@ import { PetView } from '@/ui/PetView';
 import { ToyPanel } from '@/ui/ToyPanel';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 import { setTintableTexture } from '@/ui/tint';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 
 const BOUNDS: WorldRect = { left: 170, right: 1110, top: 470, bottom: 620 };
 const MOVE_SPEED = 320;
@@ -142,7 +144,8 @@ export class ParkScene extends Phaser.Scene {
     this.toasts = [];
     this.toastActive = false;
 
-    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'park');
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'park').setDepth(-10);
+    applySeasonTheme(this, currentSeasonTheme(), 'outdoor');
 
     this.createTopBar();
     this.createGoalCard();

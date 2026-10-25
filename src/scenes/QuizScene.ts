@@ -22,9 +22,11 @@ import {
 } from '@/systems/school';
 import { initialAdaptiveState, nextAdaptiveState, type AdaptiveQuizState } from '@/systems/quiz';
 import { isSpeechAvailable, speak, stopSpeaking } from '@/systems/speech';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
 import { PetView } from '@/ui/PetView';
 import { drawQuizVisual } from '@/ui/QuizVisualView';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
 import { setTintableTexture } from '@/ui/tint';
@@ -90,7 +92,9 @@ export class QuizScene extends Phaser.Scene {
     this.usedIds.clear();
     this.adaptive = initialAdaptiveState(save.schoolProgress(this.subject).bestStars);
 
-    drawBackdrop(this);
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
     this.createHeader();
     this.createHeartPill();
     this.createQuestionPanel();

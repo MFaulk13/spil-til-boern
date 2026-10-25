@@ -6,9 +6,11 @@ import { isPetId, type PetId } from '@/game/types';
 import { audio } from '@/systems/audio';
 import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { Button } from '@/ui/Button';
 import { EggView } from '@/ui/EggView';
 import { PetView } from '@/ui/PetView';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
@@ -83,7 +85,9 @@ export class HatchScene extends Phaser.Scene {
     this.nameButtons.clear();
     this.petDefinition = getPet(this.petId);
 
-    drawBackdrop(this);
+    const theme = currentSeasonTheme();
+    drawBackdrop(this, theme);
+    applySeasonTheme(this, theme, 'menu');
     this.createRoom();
     this.createHeader();
     this.createNest();

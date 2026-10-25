@@ -49,12 +49,14 @@ import {
 } from '@/systems/pet';
 import { canPlace, clampCenter, createFurnitureUid, footprintOf } from '@/systems/placement';
 import { save } from '@/systems/save';
+import { currentSeasonTheme } from '@/systems/season';
 import { speak } from '@/systems/speech';
 import { CharacterView } from '@/ui/CharacterView';
 import { HomeFixtures } from '@/ui/HomeFixtures';
 import { InventoryPanel, type InventoryEntry } from '@/ui/InventoryPanel';
 import { PetPanel, type PetPanelMode } from '@/ui/PetPanel';
 import { PetView } from '@/ui/PetView';
+import { applySeasonTheme } from '@/ui/SeasonDecor';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 import { setTintableTexture } from '@/ui/tint';
 
@@ -152,7 +154,8 @@ export class HomeScene extends Phaser.Scene {
     this.transitioning = false;
     this.guideHint = undefined;
 
-    this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(0);
+    this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(-10);
+    applySeasonTheme(this, currentSeasonTheme(), 'indoor');
     this.createFloorTrigger();
     this.createDoors();
     this.createFurnitureViews();
@@ -1199,7 +1202,7 @@ export class HomeScene extends Phaser.Scene {
   private applyRoom(target: RoomId): void {
     this.room = getRoom(target);
     this.roomBackground?.destroy();
-    this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(0);
+    this.roomBackground = this.add.image(GAME_WIDTH / 2, 360, this.room.assetKey).setDepth(-10);
     this.clearDoors();
     this.createDoors();
 

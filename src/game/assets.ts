@@ -67,6 +67,9 @@ import furnitureBeanbagUrl from '@/assets/furniture/furniture-beanbag.svg';
 import furnitureBookshelfUrl from '@/assets/furniture/furniture-bookshelf.svg';
 import furnitureCabinetUrl from '@/assets/furniture/furniture-cabinet.svg';
 import furnitureCactusUrl from '@/assets/furniture/furniture-cactus.svg';
+import furnitureBonfireUrl from '@/assets/furniture/furniture-bonfire.svg';
+import furnitureChristmasTreeUrl from '@/assets/furniture/furniture-christmas-tree.svg';
+import furniturePumpkinUrl from '@/assets/furniture/furniture-pumpkin.svg';
 import furnitureChairUrl from '@/assets/furniture/furniture-chair.svg';
 import furnitureCoffeeTableUrl from '@/assets/furniture/furniture-coffee-table.svg';
 import furnitureDeskUrl from '@/assets/furniture/furniture-desk.svg';
@@ -93,10 +96,14 @@ import furnitureSofaUrl from '@/assets/furniture/furniture-sofa.svg';
 import furnitureTableUrl from '@/assets/furniture/furniture-table.svg';
 import furnitureTvUrl from '@/assets/furniture/furniture-tv.svg';
 import furnitureWardrobeUrl from '@/assets/furniture/furniture-wardrobe.svg';
+import accessoryAutumnScarfUrl from '@/assets/items/accessory-autumn-scarf.svg';
 import accessoryBandanaUrl from '@/assets/items/accessory-bandana.svg';
 import accessoryBowItemUrl from '@/assets/items/accessory-bow-item.svg';
+import accessoryBunnyEarsUrl from '@/assets/items/accessory-bunny-ears.svg';
 import accessoryCrownUrl from '@/assets/items/accessory-crown.svg';
+import accessoryFlowerWreathUrl from '@/assets/items/accessory-flower-wreath.svg';
 import accessoryHatUrl from '@/assets/items/accessory-hat.svg';
+import accessorySantaHatUrl from '@/assets/items/accessory-santa-hat.svg';
 import accessoryScarfUrl from '@/assets/items/accessory-scarf.svg';
 import treatAppleUrl from '@/assets/items/treat-apple.svg';
 import treatBananaUrl from '@/assets/items/treat-banana.svg';
@@ -137,16 +144,28 @@ import roomBedroomUrl from '@/assets/rooms/room-bedroom.svg';
 import roomKitchenUrl from '@/assets/rooms/room-kitchen.svg';
 import roomLivingUrl from '@/assets/rooms/room-living.svg';
 import roomPlayroomUrl from '@/assets/rooms/room-playroom.svg';
+import seasonAutumnUrl from '@/assets/seasons/season-autumn.svg';
+import seasonChristmasUrl from '@/assets/seasons/season-christmas.svg';
+import seasonEasterUrl from '@/assets/seasons/season-easter.svg';
+import seasonFastelavnUrl from '@/assets/seasons/season-fastelavn.svg';
+import seasonHalloweenUrl from '@/assets/seasons/season-halloween.svg';
+import seasonNewYearUrl from '@/assets/seasons/season-new-year.svg';
+import seasonSankthansUrl from '@/assets/seasons/season-sankthans.svg';
+import seasonSpringUrl from '@/assets/seasons/season-spring.svg';
+import seasonSummerUrl from '@/assets/seasons/season-summer.svg';
+import seasonWinterUrl from '@/assets/seasons/season-winter.svg';
 import parkUrl from '@/assets/town/park.svg';
 import schoolRoomUrl from '@/assets/town/school-room.svg';
 import shopRoomUrl from '@/assets/town/shop-room.svg';
 import townMapUrl from '@/assets/town/town-map.svg';
 import toyBallUrl from '@/assets/toys/toy-ball.svg';
+import toyBeachBallUrl from '@/assets/toys/toy-beach-ball.svg';
 import toyBlocksUrl from '@/assets/toys/toy-blocks.svg';
 import toyBunnyUrl from '@/assets/toys/toy-bunny.svg';
 import toyCarUrl from '@/assets/toys/toy-car.svg';
 import toyCrayonsUrl from '@/assets/toys/toy-crayons.svg';
 import toyDollhouseUrl from '@/assets/toys/toy-dollhouse.svg';
+import toyEasterEggsUrl from '@/assets/toys/toy-easter-eggs.svg';
 import toyFrisbeeUrl from '@/assets/toys/toy-frisbee.svg';
 import toyKiteUrl from '@/assets/toys/toy-kite.svg';
 import toyPuzzleUrl from '@/assets/toys/toy-puzzle.svg';
@@ -189,7 +208,7 @@ import iconTapUrl from '@/assets/ui/icon-tap.svg';
 import iconTrashUrl from '@/assets/ui/icon-trash.svg';
 import iconReligionUrl from '@/assets/ui/icon-religion.svg';
 
-export type AssetKind = 'character' | 'pet' | 'egg' | 'icon' | 'item' | 'scene';
+export type AssetKind = 'character' | 'pet' | 'egg' | 'icon' | 'item' | 'scene' | 'decor';
 
 export interface AssetEntry {
   key: string;
@@ -219,6 +238,7 @@ const LOW_MEMORY_SIZES: Partial<Record<AssetKind, { width: number; height: numbe
   character: { width: 256, height: 256 },
   pet: { width: 256, height: 256 },
   egg: { width: 192, height: 240 },
+  decor: { width: 160, height: 160 },
 };
 
 export function getRasterSize(
@@ -326,6 +346,40 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { key: 'shop-room', url: shopRoomUrl, width: 1280, height: 720 },
   { key: 'school-room', url: schoolRoomUrl, width: 1280, height: 720 },
   { key: 'park', url: parkUrl, width: 1280, height: 720 },
+  { key: 'season-spring', url: seasonSpringUrl, width: 256, height: 256, kind: 'decor' },
+  { key: 'season-summer', url: seasonSummerUrl, width: 256, height: 256, kind: 'decor' },
+  { key: 'season-autumn', url: seasonAutumnUrl, width: 256, height: 256, kind: 'decor' },
+  { key: 'season-winter', url: seasonWinterUrl, width: 256, height: 256, kind: 'decor' },
+  {
+    key: 'season-halloween',
+    url: seasonHalloweenUrl,
+    width: 256,
+    height: 256,
+    kind: 'decor',
+  },
+  {
+    key: 'season-christmas',
+    url: seasonChristmasUrl,
+    width: 256,
+    height: 256,
+    kind: 'decor',
+  },
+  { key: 'season-easter', url: seasonEasterUrl, width: 256, height: 256, kind: 'decor' },
+  { key: 'season-new-year', url: seasonNewYearUrl, width: 256, height: 256, kind: 'decor' },
+  {
+    key: 'season-fastelavn',
+    url: seasonFastelavnUrl,
+    width: 256,
+    height: 256,
+    kind: 'decor',
+  },
+  {
+    key: 'season-sankthans',
+    url: seasonSankthansUrl,
+    width: 256,
+    height: 256,
+    kind: 'decor',
+  },
   { key: 'furniture-sofa', url: furnitureSofaUrl, width: 256, height: 128 },
   { key: 'furniture-chair', url: furnitureChairUrl, width: 128, height: 128 },
   { key: 'furniture-table', url: furnitureTableUrl, width: 128, height: 128 },
@@ -358,6 +412,14 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { key: 'furniture-guitar', url: furnitureGuitarUrl, width: 64, height: 128 },
   { key: 'furniture-pet-bed', url: furniturePetBedUrl, width: 128, height: 64 },
   { key: 'furniture-rocking-chair', url: furnitureRockingChairUrl, width: 128, height: 128 },
+  { key: 'furniture-pumpkin', url: furniturePumpkinUrl, width: 128, height: 128 },
+  {
+    key: 'furniture-christmas-tree',
+    url: furnitureChristmasTreeUrl,
+    width: 128,
+    height: 192,
+  },
+  { key: 'furniture-bonfire', url: furnitureBonfireUrl, width: 128, height: 128 },
   { key: 'toy-ball', url: toyBallUrl, width: 64, height: 64 },
   { key: 'toy-teddy', url: toyTeddyUrl, width: 64, height: 128 },
   { key: 'toy-scratching-post', url: toyScratchingPostUrl, width: 128, height: 192 },
@@ -375,11 +437,27 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { key: 'toy-xylophone', url: toyXylophoneUrl, width: 128, height: 64 },
   { key: 'toy-car', url: toyCarUrl, width: 64, height: 64 },
   { key: 'toy-tea-set', url: toyTeaSetUrl, width: 128, height: 64 },
+  { key: 'toy-easter-eggs', url: toyEasterEggsUrl, width: 96, height: 96 },
+  { key: 'toy-beach-ball', url: toyBeachBallUrl, width: 96, height: 96 },
   { key: 'accessory-bow-item', url: accessoryBowItemUrl, width: 96, height: 96 },
   { key: 'accessory-crown', url: accessoryCrownUrl, width: 96, height: 96 },
   { key: 'accessory-bandana', url: accessoryBandanaUrl, width: 96, height: 96 },
   { key: 'accessory-hat', url: accessoryHatUrl, width: 96, height: 96 },
   { key: 'accessory-scarf', url: accessoryScarfUrl, width: 96, height: 96 },
+  { key: 'accessory-santa-hat', url: accessorySantaHatUrl, width: 96, height: 96 },
+  { key: 'accessory-bunny-ears', url: accessoryBunnyEarsUrl, width: 96, height: 96 },
+  {
+    key: 'accessory-flower-wreath',
+    url: accessoryFlowerWreathUrl,
+    width: 96,
+    height: 96,
+  },
+  {
+    key: 'accessory-autumn-scarf',
+    url: accessoryAutumnScarfUrl,
+    width: 96,
+    height: 96,
+  },
   { key: 'treat-cookie', url: treatCookieUrl, width: 96, height: 96 },
   { key: 'treat-carrot', url: treatCarrotUrl, width: 96, height: 96 },
   { key: 'treat-apple', url: treatAppleUrl, width: 96, height: 96 },

@@ -287,9 +287,10 @@ export class PetView extends Phaser.GameObjects.Container {
       return;
     }
 
-    const size = this.size * 0.36;
+    const size = this.size * (item.petAccessory?.scale ?? 0.36);
+    const y = this.size * (item.petAccessory?.y ?? -0.34);
     this.accessoryImage = this.scene.add
-      .image(0, -this.size * 0.34, item.assetKey)
+      .image(0, y, item.assetKey)
       .setDisplaySize(size, size)
       .setAngle(-6);
     this.content.add(this.accessoryImage);
