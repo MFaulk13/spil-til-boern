@@ -4,6 +4,7 @@ import { getPet } from '@/game/catalog/pets';
 import { getRoom, ROOMS, type RoomDefinition } from '@/game/catalog/rooms';
 import { TALENTS, type TalentDefinition, type TalentId } from '@/game/catalog/talents';
 import { GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
+import { isHudDisabled } from '@/game/device';
 import { text } from '@/game/text';
 import type {
   CareNeed,
@@ -196,7 +197,9 @@ export class HomeScene extends Phaser.Scene {
 
     this.lastMood = moodOf(this.needs);
     this.startAmbient();
-    this.scene.launch(SCENE_KEYS.HUD);
+    if (!isHudDisabled()) {
+      this.scene.launch(SCENE_KEYS.HUD);
+    }
     this.refreshPetMood();
     this.emitHudState();
     this.cameras.main.fadeIn(260, 255, 246, 229);

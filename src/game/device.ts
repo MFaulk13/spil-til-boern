@@ -54,7 +54,7 @@ export function getRendererMode(options: DeviceQuery = {}): RendererMode {
   return 'auto';
 }
 
-const LOW_MEMORY_MAX_TEXTURES = 5;
+const LOW_MEMORY_MAX_TEXTURES = 2;
 
 export function getMaxTextures(options: DeviceQuery = {}): number {
   const params = new URLSearchParams(getSearch(options.search));
@@ -90,6 +90,10 @@ export function getFpsLimit(options: DeviceQuery = {}): number {
     }
   }
   return params.get('quality') === 'low' ? 30 : 0;
+}
+
+export function isHudDisabled(options: DeviceQuery = {}): boolean {
+  return new URLSearchParams(getSearch(options.search)).get('nohud') === '1';
 }
 
 export function describeWebGL(gl: WebGLRenderingContext | null): string {

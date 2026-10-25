@@ -5,6 +5,7 @@ import {
   getFpsLimit,
   getMaxTextures,
   getRendererMode,
+  isHudDisabled,
   isLegacyFirefox,
   isLowMemoryMode,
 } from '@/game/device';
@@ -38,8 +39,13 @@ describe('device detection', () => {
   });
 
   it('caps texture units in low-memory mode', () => {
-    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '' })).toBe(5);
+    expect(getMaxTextures({ userAgent: FIREFOX_115, search: '' })).toBe(2);
     expect(getMaxTextures({ userAgent: FIREFOX_138, search: '' })).toBe(-1);
+  });
+
+  it('parses the nohud diagnostic override', () => {
+    expect(isHudDisabled({ search: '?nohud=1' })).toBe(true);
+    expect(isHudDisabled({ search: '' })).toBe(false);
   });
 
   it('parses the maxtextures override', () => {

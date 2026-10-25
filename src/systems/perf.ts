@@ -5,6 +5,7 @@ interface FlushCapableRenderer {
   type: number;
   maxTextures?: number;
   flush?: () => void;
+  gl?: WebGLRenderingContext | null;
 }
 
 function isPerfMode(): boolean {
@@ -44,8 +45,24 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
     };
   }
 
+  const gl = renderer.type === Phaser.WEBGL ? (renderer.gl ?? null) : null;
+  const originalDrawElements = gl?.drawElements.bind(gl) ?? null;
+  const originalDrawArrays = gl?.drawArrays.bind(gl) ?? null;
+  let drawCount = 0;
+  if (gl && originalDrawElements && originalDrawArrays) {
+    gl.drawElements = (...args: Parameters<WebGLRenderingContext['drawElements']>) => {
+      drawCount += 1;
+      originalDrawElements(...args);
+    };
+    gl.drawArrays = (...args: Parameters<WebGLRenderingContext['drawArrays']>) => {
+      drawCount += 1;
+      originalDrawArrays(...args);
+    };
+  }
+
   let framesSince = 0;
   let lastFlushCount = 0;
+  let lastDrawCount = 0;
   let lastSample = performance.now();
   let updateTime = 0;
   let renderTime = 0;
@@ -80,11 +97,14 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
 
     const fps = (framesSince * 1000) / elapsed;
     const flushes = flushCount - lastFlushCount;
+    const draws = drawCount - lastDrawCount;
     const batchesPerFrame = framesSince > 0 ? (flushes / framesSince).toFixed(1) : 'n/a';
+    const drawsPerFrame = framesSince > 0 ? (draws / framesSince).toFixed(1) : 'n/a';
     const updateAvg = framesSince > 0 ? updateTime / framesSince : 0;
     const renderAvg = framesSince > 0 ? renderTime / framesSince : 0;
     framesSince = 0;
     lastFlushCount = flushCount;
+    lastDrawCount = drawCount;
     lastSample = now;
     updateTime = 0;
     renderTime = 0;
@@ -102,7 +122,8 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
     overlay.textContent = [
       `FPS ${fps.toFixed(0)}  frame ${frameMs}ms`,
       `update ${updateAvg.toFixed(1)}ms  render ${renderAvg.toFixed(1)}ms`,
-      `batches/frame ${batchesPerFrame}  objects ${objectCount}  tweens ${tweenCount}`,
+      `draws/frame ${drawsPerFrame}  flushes/frame ${batchesPerFrame}`,
+      `objects ${objectCount}  tweens ${tweenCount}`,
       `textures ${game.textures.getTextureKeys().length}  maxTextures ${maxTextures}`,
       `aa ${getAntialias() ? 'on' : 'off'}  fpsLimit ${getFpsLimit() || 'off'}  lowmem ${isLowMemoryMode()}`,
       `scenes ${sceneInfo}`,
@@ -117,6 +138,10 @@ export function bindPerformanceOverlay(game: Phaser.Game): () => void {
     game.events.off(Phaser.Core.Events.POST_RENDER, onPostRender);
     if (originalFlush) {
       renderer.flush = originalFlush;
+    }
+    if (gl && originalDrawElements && originalDrawArrays) {
+      gl.drawElements = originalDrawElements;
+      gl.drawArrays = originalDrawArrays;
     }
     overlay.remove();
   };
