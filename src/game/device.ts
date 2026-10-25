@@ -51,7 +51,7 @@ export function getRendererMode(options: DeviceQuery = {}): RendererMode {
   if (renderer === 'webgl') {
     return 'webgl';
   }
-  return 'auto';
+  return isLowMemoryMode(options) ? 'canvas' : 'auto';
 }
 
 const LOW_MEMORY_MAX_TEXTURES = 2;

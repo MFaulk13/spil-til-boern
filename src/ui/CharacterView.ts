@@ -3,6 +3,7 @@ import type { CharacterLook } from '@/game/types';
 import { buildCharacterLayers, normalizeLook } from '@/systems/appearance';
 import { isReducedMotion } from '@/systems/motion';
 import { COLORS } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 export class CharacterView extends Phaser.GameObjects.Container {
   private readonly content: Phaser.GameObjects.Container;
@@ -103,7 +104,7 @@ export class CharacterView extends Phaser.GameObjects.Container {
         .setOrigin(0.5, 0.95)
         .setDisplaySize(this.size, this.size);
       if (layer.tint !== undefined) {
-        image.setTint(layer.tint);
+        setTintableTexture(image, layer.assetKey, layer.tint);
       }
       this.content.add(image);
 

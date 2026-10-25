@@ -56,6 +56,7 @@ import { InventoryPanel, type InventoryEntry } from '@/ui/InventoryPanel';
 import { PetPanel, type PetPanelMode } from '@/ui/PetPanel';
 import { PetView } from '@/ui/PetView';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const MOVE_SPEED = 330;
 const PET_FOLLOW_GAP = 118;
@@ -1551,7 +1552,7 @@ export class HomeScene extends Phaser.Scene {
       this.room.id,
       save.furniture,
     );
-    this.ghost.setTint(valid ? 0xa7e6b8 : 0xffb3b3);
+    setTintableTexture(this.ghost, item.assetKey, valid ? 0xa7e6b8 : 0xffb3b3);
   }
 
   private handlePlacementPointer(pointer: Phaser.Input.Pointer): void {

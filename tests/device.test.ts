@@ -36,6 +36,9 @@ describe('device detection', () => {
     expect(getRendererMode({ search: '?renderer=canvas' })).toBe('canvas');
     expect(getRendererMode({ search: '?renderer=webgl' })).toBe('webgl');
     expect(getRendererMode({ search: '' })).toBe('auto');
+    expect(getRendererMode({ userAgent: FIREFOX_115, search: '' })).toBe('canvas');
+    expect(getRendererMode({ userAgent: FIREFOX_138, search: '' })).toBe('auto');
+    expect(getRendererMode({ userAgent: FIREFOX_115, search: '?renderer=webgl' })).toBe('webgl');
   });
 
   it('caps texture units in low-memory mode', () => {

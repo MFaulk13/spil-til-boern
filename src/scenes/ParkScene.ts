@@ -39,6 +39,7 @@ import { ParkIntro } from '@/ui/ParkIntro';
 import { PetView } from '@/ui/PetView';
 import { ToyPanel } from '@/ui/ToyPanel';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const BOUNDS: WorldRect = { left: 170, right: 1110, top: 470, bottom: 620 };
 const MOVE_SPEED = 320;
@@ -1298,12 +1299,11 @@ export class ParkScene extends Phaser.Scene {
       }
       marker.setVisible(active);
       if (active) {
-        marker.setTexture(complete ? 'icon-check' : 'icon-star');
-        if (complete) {
-          marker.clearTint();
-        } else {
-          marker.setTint(0xffc94d);
-        }
+        setTintableTexture(
+          marker,
+          complete ? 'icon-check' : 'icon-star',
+          complete ? null : 0xffc94d,
+        );
       }
     }
   }

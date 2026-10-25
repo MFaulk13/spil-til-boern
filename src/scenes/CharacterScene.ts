@@ -29,6 +29,7 @@ import { Button } from '@/ui/Button';
 import { CharacterView } from '@/ui/CharacterView';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const PREVIEW = { x: 330, groundY: 640, size: 330 } as const;
 const PANEL = { x: 52, y: 132, width: 556, height: 536 } as const;
@@ -389,7 +390,7 @@ export class CharacterScene extends Phaser.Scene {
     } else if (options.imageKey && this.textures.exists(options.imageKey)) {
       const image = this.add.image(0, -14, options.imageKey).setDisplaySize(74, 74);
       if (options.tint !== undefined) {
-        image.setTint(options.tint);
+        setTintableTexture(image, options.imageKey, options.tint, 96);
       }
       if (options.locked) {
         image.setAlpha(0.35);

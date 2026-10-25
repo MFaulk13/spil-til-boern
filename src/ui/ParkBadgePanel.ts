@@ -4,6 +4,7 @@ import { text } from '@/game/text';
 import { isReducedMotion } from '@/systems/motion';
 import { Button } from '@/ui/Button';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const PANEL_WIDTH = 920;
 const PANEL_HEIGHT = 620;
@@ -115,11 +116,11 @@ export class ParkBadgePanel extends Phaser.GameObjects.Container {
     background.strokeRoundedRect(-CARD_WIDTH / 2, -CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 20);
 
     const circle = scene.add.circle(0, -44, 42, earned ? badge.color : COLORS.ink, earned ? 0.22 : 0.08);
-    const icon = scene.add
-      .image(0, -44, getParkBadge(badge.id)?.iconKey ?? 'icon-star')
-      .setDisplaySize(52, 52);
+    const iconKey = getParkBadge(badge.id)?.iconKey ?? 'icon-star';
+    const icon = scene.add.image(0, -44, iconKey).setDisplaySize(52, 52);
     if (!earned) {
-      icon.setTint(0x7d706a).setAlpha(0.45);
+      setTintableTexture(icon, iconKey, 0x7d706a);
+      icon.setAlpha(0.45);
     }
 
     const label = scene.add

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { PetDefinition } from '@/game/catalog/pets';
 import { isReducedMotion } from '@/systems/motion';
 import { COLORS } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const EGG_WIDTH = 150;
 const EGG_HEIGHT = 188;
@@ -29,8 +30,8 @@ export class EggView extends Phaser.GameObjects.Container {
     this.base = scene.add
       .image(0, 0, 'egg-base')
       .setOrigin(0.5, 0.94)
-      .setDisplaySize(this.eggWidth, this.eggHeight)
-      .setTint(pet.eggTint);
+      .setDisplaySize(this.eggWidth, this.eggHeight);
+    setTintableTexture(this.base, 'egg-base', pet.eggTint);
     this.pattern = scene.add
       .image(0, 0, `egg-${pet.eggPattern}`)
       .setOrigin(0.5, 0.94)

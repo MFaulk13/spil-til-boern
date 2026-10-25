@@ -8,6 +8,7 @@ import { isReducedMotion } from '@/systems/motion';
 import { save } from '@/systems/save';
 import { Button } from '@/ui/Button';
 import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const CARD_WIDTH = 280;
 const CARD_HEIGHT = 196;
@@ -239,7 +240,8 @@ export class SchoolScene extends Phaser.Scene {
     for (let index = 0; index < 3; index += 1) {
       const star = this.add.image(index * 28, 0, 'icon-star').setDisplaySize(24, 24);
       if (index >= bestStars) {
-        star.setTint(0xb9aea5).setAlpha(0.55);
+        setTintableTexture(star, 'icon-star', 0xb9aea5);
+        star.setAlpha(0.55);
       }
       container.add(star);
     }

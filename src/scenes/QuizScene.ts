@@ -27,6 +27,7 @@ import { PetView } from '@/ui/PetView';
 import { drawQuizVisual } from '@/ui/QuizVisualView';
 import { drawBackdrop } from '@/ui/background';
 import { COLORS, FONT_FAMILY, SUBJECT_COLORS } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 interface AnswerButton {
   option: QuizOption;
@@ -467,7 +468,8 @@ export class QuizScene extends Phaser.Scene {
     for (let index = 0; index < 3; index += 1) {
       const star = this.add.image((index - 1) * 64, 0, 'icon-star').setDisplaySize(54, 54);
       if (index >= stars) {
-        star.setTint(0xb9aea5).setAlpha(0.55);
+        setTintableTexture(star, 'icon-star', 0xb9aea5);
+        star.setAlpha(0.55);
       }
       starRow.add(star);
     }

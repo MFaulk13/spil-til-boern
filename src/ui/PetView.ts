@@ -5,6 +5,7 @@ import type { CareNeed, PetId } from '@/game/types';
 import { isReducedMotion } from '@/systems/motion';
 import type { Mood } from '@/systems/pet';
 import { COLORS } from '@/ui/theme';
+import { setTintableTexture } from '@/ui/tint';
 
 const SAD_TINT = 0xc7d8e6;
 const HAPPY_TINT = 0xfff4d6;
@@ -298,15 +299,16 @@ export class PetView extends Phaser.GameObjects.Container {
     if (!this.image) {
       return;
     }
+    const pet = getPet(this.petId);
     if (this.mood === 'sad') {
-      this.image.setTint(SAD_TINT);
+      setTintableTexture(this.image, pet.assetKey, SAD_TINT);
       return;
     }
     if (this.mood === 'happy') {
-      this.image.setTint(HAPPY_TINT);
+      setTintableTexture(this.image, pet.assetKey, HAPPY_TINT);
       return;
     }
-    this.image.clearTint();
+    setTintableTexture(this.image, pet.assetKey, null);
   }
 
   private rebuildExpression(): void {
