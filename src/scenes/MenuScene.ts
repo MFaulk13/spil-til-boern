@@ -120,12 +120,12 @@ export class MenuScene extends Phaser.Scene {
     }
 
     this.soundButton = new Button(this, {
-      x: GAME_WIDTH / 2 - 155,
+      x: GAME_WIDTH / 2 - 175,
       y: 558,
       label: this.soundLabel(),
-      width: 280,
-      height: 76,
-      fontSize: 26,
+      width: 320,
+      height: 84,
+      fontSize: 28,
       color: COLORS.teal,
       textColor: COLORS.textDark,
       onClick: () => this.toggleSound(),
@@ -135,8 +135,8 @@ export class MenuScene extends Phaser.Scene {
       x: GAME_WIDTH / 2 + 175,
       y: 558,
       label: this.motionLabel(),
-      width: 310,
-      height: 76,
+      width: 320,
+      height: 84,
       fontSize: 24,
       color: COLORS.lavender,
       textColor: COLORS.textDark,
