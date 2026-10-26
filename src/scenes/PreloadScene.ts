@@ -4,6 +4,7 @@ import { CORE_ASSETS } from '@/game/assets';
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from '@/game/constants';
 import { describeWebGL, isLowMemoryMode } from '@/game/device';
 import { text } from '@/game/text';
+import { getSpeechDiagnostics } from '@/systems/speech';
 import { COLORS, FONT_FAMILY } from '@/ui/theme';
 
 const BAR_WIDTH = 500;
@@ -70,6 +71,14 @@ export class PreloadScene extends Phaser.Scene {
       isWebGL ? (renderer as Phaser.Renderer.WebGL.WebGLRenderer).maxTextures : 'canvas',
     );
     console.warn('[gotar] lowmem', isLowMemoryMode());
+
+    const speech = getSpeechDiagnostics();
+    console.warn(
+      '[gotar] tale',
+      speech.voiceCount === 0
+        ? 'ingen stemmer indlæst endnu'
+        : `${speech.voiceCount} stemmer, dansk=${speech.danishVoice ?? 'mangler'}, engelsk=${speech.englishVoice ?? 'mangler'}`,
+    );
 
     const missing = CORE_ASSETS.filter((asset) => !this.textures.exists(asset.key));
     if (missing.length > 0) {

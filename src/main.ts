@@ -7,8 +7,10 @@ import { bindVisibilityPause } from '@/systems/lifecycle';
 import { bindMobileDisplay } from '@/systems/mobile';
 import { needsClock } from '@/systems/needs';
 import { bindPerformanceOverlay } from '@/systems/perf';
+import { primeSpeech } from '@/systems/speech';
 
 document.documentElement.classList.toggle('low-memory', isLowMemoryMode());
+primeSpeech();
 
 const game = new Phaser.Game(createGameConfig());
 const unbindVisibility = bindVisibilityPause(game);
@@ -16,7 +18,10 @@ const unbindMobileDisplay = bindMobileDisplay(game);
 const unbindNeedsClock = needsClock.start(game);
 const unbindPerformanceOverlay = bindPerformanceOverlay(game);
 
-const unlockAudio = () => audio.unlock();
+const unlockAudio = () => {
+  audio.unlock();
+  primeSpeech();
+};
 window.addEventListener('pointerdown', unlockAudio, { once: true });
 window.addEventListener('keydown', unlockAudio, { once: true });
 
